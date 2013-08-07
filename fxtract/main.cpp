@@ -19,6 +19,9 @@
 #include "util.h"
 #include "fileManager.h"
 
+
+#define VERSION "0.1"
+
 struct Fx
 {
     seqan::CharString id;
@@ -67,17 +70,19 @@ void printPair(Fx& mate1, Fx& mate2, std::ostream& out) {
 }
 
 void usage() {
-    std::cout<< "fxtract [-zjq] -f pattern_file | pattern <read1.fx> [<read2.fx>]\n";
-    std::cout<<"\t-z           Force gzip formatting\n";
-    std::cout<<"\t-j           Force bzip2 formatting\n";
-    std::cout<<"\t-q           Force fastq formatting\n";
+    std::cout<< "fxtract [-hv] -f pattern_file | pattern <read1.fx> [<read2.fx>]\n";
+    //std::cout<<"\t-z           Force gzip formatting\n";
+    //std::cout<<"\t-j           Force bzip2 formatting\n";
+    //std::cout<<"\t-q           Force fastq formatting\n";
     std::cout<<"\t-f <file>    File containing patterns, one per line" <<std::endl;
+    std::cout<<"\t-h           Print this help"<<std::endl;
+    std::cout<<"\t-V           Print version"<<std::endl;
     exit(1);
 }
 
 int parseOptions(int argc,  char * argv[], Options& opts) {
     int c;
-    while ((c = getopt(argc, argv, "hf:zjq")) != -1 ) {
+    while ((c = getopt(argc, argv, "hf:zjqV")) != -1 ) {
         switch (c) {
             case 'f':
                 opts.pattern_file = optarg;
@@ -90,7 +95,11 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
                 break;
             case 'q':
                 opts.fastq = true;
-                break;                
+                break;
+            case 'V':
+                std::cout <<VERSION<<std::endl;
+                exit(1);
+                break;
             case 'h':
             default:
                 usage();
