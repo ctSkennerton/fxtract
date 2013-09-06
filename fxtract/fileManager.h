@@ -51,6 +51,7 @@ public:
      fpointer_t mOutfiles;
 private:
      fmapping_t mMapping;
+     fmapping_t mFilenameMapping;
      bool noDelete;
 };
 

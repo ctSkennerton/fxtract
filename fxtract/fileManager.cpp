@@ -51,7 +51,11 @@ fmapping_t::iterator FileManager::find(seqan::CharString key) {
 }
 
 void FileManager::add(seqan::CharString pattern, seqan::CharString filename) {
+    fmapping_t::iterator it = mFilenameMapping.find(filename);
+    if (it == mFilenameMapping.end()) {
+    
         mMapping[pattern] = mOutfiles.size();
+        mFilenameMapping[filename] = mMapping[pattern];
         std::ofstream * out = new std::ofstream(seqan::toCString(filename));
         mOutfiles.push_back(out);
 
@@ -65,6 +69,12 @@ void FileManager::add(seqan::CharString pattern, seqan::CharString filename) {
         seqan::CharString rc = pattern;
         seqan::reverseComplement(rc);
         mMapping[rc] = mMapping[pattern];
+    } else {
+        mMapping[pattern] = it->second;
+        seqan::CharString rc = pattern;
+        seqan::reverseComplement(rc);
+        mMapping[rc] = mMapping[pattern];
+    }
 }
 
 void FileManager::add(seqan::CharString pattern) {
