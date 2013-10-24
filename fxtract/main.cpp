@@ -50,7 +50,7 @@ struct Options
     {}
 };
 
-typedef seqan::Pattern<seqan::String<seqan::CharString>, seqan::WuManber> WuMa;
+typedef seqan::Pattern<seqan::String<seqan::CharString>, seqan::AhoCorasick> WuMa;
 
 
 void printSingle(Fx& mate1, std::ostream& out ) {
