@@ -21,7 +21,7 @@
 #include "fileManager.h"
 
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 
 struct Fx
 {
@@ -53,7 +53,7 @@ struct Options
 typedef seqan::Pattern<seqan::String<seqan::CharString>, seqan::WuManber> WuMa;
 
 
-void printSingle(Fx& mate1, std::ostream& out ) {
+void printSingle(Fx& mate1, FILE * out ) {
     if (seqan::empty(mate1.qual)) {
         //out<<">"<<mate1.id<<std::endl;
         //out<<mate1.seq<<std::endl;
@@ -65,7 +65,7 @@ void printSingle(Fx& mate1, std::ostream& out ) {
     }
 }
 
-void printPair(Fx& mate1, Fx& mate2, std::ostream& out) {
+void printPair(Fx& mate1, Fx& mate2, FILE * out) {
     // match in the first read print out pair
     printSingle(mate1, out);
     printSingle(mate2, out);
@@ -120,16 +120,7 @@ void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
     std::map<seqan::CharString, seqan::CharString> results;
     std::vector<std::string> fields;
     std::string line;
-    bool cout_only = false;
-    std::getline(in, line);
-    tokenize(line, fields);
-    if(fields.size() == 1) {
-        cout_only = true;
-        results[fields[0]] = "";
-    } else {
-        results[fields[0]] = fields[1];
-    }
-    fields.clear();
+
     while(std::getline(in, line)) {
         tokenize(line, fields);
         switch(fields.size()) {
@@ -137,12 +128,8 @@ void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
                 break;
             case 1:
                 results[fields[0]] = "";
-                cout_only = true;
                 break;
             default:
-                if(fields.size() > 1 && cout_only) {
-                    throw FileManagerException("All rows in the pattern file must contain the same number of columns");
-                }
                 
                 if(results.find(fields[0]) != results.end()) {
                     // patterns are the same
@@ -159,14 +146,12 @@ void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
         fields.clear();
     }
     fields.clear();
-    if(cout_only) {
-        std::map<seqan::CharString, seqan::CharString>::iterator it;
-        for(it = results.begin(); it != results.end(); ++it) {
+    
+    std::map<seqan::CharString, seqan::CharString>::iterator it;
+    for(it = results.begin(); it != results.end(); ++it) {
+        if(it->second == "") {
             fmanager.add(it->first);
-        }
-    } else {
-        std::map<seqan::CharString, seqan::CharString>::iterator it;
-        for(it = results.begin(); it != results.end(); ++it) {
+        } else {
             fmanager.add(it->first, it->second);
         }
     }

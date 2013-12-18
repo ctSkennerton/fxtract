@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		94AF7F9618194D73002DA0D8 /* fileManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94AF7F9318194D73002DA0D8 /* fileManager.cpp */; };
 		94EAEC7717A7C6F1007076B2 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94EAEC7617A7C6F1007076B2 /* main.cpp */; };
 		94EAEC7917A7C6F1007076B2 /* fxtract.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 94EAEC7817A7C6F1007076B2 /* fxtract.1 */; };
 		94EAEC8017A7EDE8007076B2 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 94EAEC7F17A7EDE8007076B2 /* Makefile */; };
@@ -26,6 +27,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		94AF7F9318194D73002DA0D8 /* fileManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fileManager.cpp; sourceTree = "<group>"; };
+		94AF7F9418194D73002DA0D8 /* fileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fileManager.h; sourceTree = "<group>"; };
+		94AF7F9518194D73002DA0D8 /* util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = util.h; sourceTree = "<group>"; };
 		94EAEC7317A7C6F1007076B2 /* fxtract */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = fxtract; sourceTree = BUILT_PRODUCTS_DIR; };
 		94EAEC7617A7C6F1007076B2 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		94EAEC7817A7C6F1007076B2 /* fxtract.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = fxtract.1; sourceTree = "<group>"; };
@@ -63,6 +67,9 @@
 			isa = PBXGroup;
 			children = (
 				94EAEC7617A7C6F1007076B2 /* main.cpp */,
+				94AF7F9318194D73002DA0D8 /* fileManager.cpp */,
+				94AF7F9418194D73002DA0D8 /* fileManager.h */,
+				94AF7F9518194D73002DA0D8 /* util.h */,
 				94EAEC7F17A7EDE8007076B2 /* Makefile */,
 				94EAEC7817A7C6F1007076B2 /* fxtract.1 */,
 			);
@@ -122,6 +129,7 @@
 			files = (
 				94EAEC7717A7C6F1007076B2 /* main.cpp in Sources */,
 				94EAEC8017A7EDE8007076B2 /* Makefile in Sources */,
+				94AF7F9618194D73002DA0D8 /* fileManager.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,6 +230,7 @@
 				94EAEC7E17A7C6F1007076B2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

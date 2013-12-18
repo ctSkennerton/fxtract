@@ -1,7 +1,7 @@
 /*
  * fileManager.h
  *
- * Store a mapping of strings to std::ofstream for printing to muliple files
+ * Store a mapping of strings to FILE for printing to muliple files
  * all at once without needing to open and close every file for each write
  *
  * Copyright (C) 2013 uqcskenn <uqcskenn@hawke>
@@ -14,8 +14,8 @@
 
 #include <map>
 #include <vector>
-#include <iostream>
-#include <fstream>
+#include <queue>
+#include <cstdio>
 #include <string>
 #include <exception>
 
@@ -31,13 +31,41 @@ private:
     const char * msg;
 };
 
-typedef std::vector<std::ostream* >fpointer_t;
+struct FileWrapper {
+    FILE * file;
+    const char * filename;
+    bool fileOpened;
+    bool deleteAtEnd;
+    
+    FileWrapper() : file(NULL), filename(NULL), fileOpened(false), deleteAtEnd(false)
+    {}
+    
+    void open() {
+        if(!fileOpened) {
+            file = fopen(filename, "a");
+        }
+        
+        if (file == NULL) {
+            throw FileManagerException("cannot open file");
+        }
+        fileOpened = true;
+    }
+    
+    void close() {
+        if(fileOpened & deleteAtEnd) {
+            fclose(file);
+            fileOpened = false;
+        }
+    }
+};
+
+typedef std::vector<FileWrapper>fpointer_t;
 typedef std::map<seqan::CharString, int > fmapping_t;
 
 class FileManager
 {
 public:
-    FileManager() : noDelete(false){}
+    FileManager() : openCount(0){}
     FileManager(std::map<seqan::CharString, seqan::CharString>& mapping);
     FileManager(std::vector<seqan::CharString>& mapping);
     ~FileManager();
@@ -46,13 +74,14 @@ public:
     fmapping_t::iterator find(seqan::CharString key);
     void add(seqan::CharString key, seqan::CharString file_name);
     void add(seqan::CharString key);
-    std::ostream& operator[]( seqan::CharString key);
+    FILE * operator[]( seqan::CharString key);
 
-     fpointer_t mOutfiles;
+    fpointer_t mOutfiles;
 private:
-     fmapping_t mMapping;
-     fmapping_t mFilenameMapping;
-     bool noDelete;
+    int openCount;
+    fmapping_t mMapping;
+    fmapping_t mFilenameMapping;
+    std::queue<int> mOpened;
 };
 
 
