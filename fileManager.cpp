@@ -6,6 +6,7 @@
  */
 
 #include <seqan/sequence.h>
+#include <seqan/seq_io.h>
 #include <seqan/modifier.h>
 #include "fileManager.h"
 #define OPEN_MAX 256
@@ -32,7 +33,7 @@ FileManager::FileManager(std::vector<seqan::CharString>& mapping) {
 FileManager::~FileManager() {
     fpointer_t::iterator it;
     for(it = mOutfiles.begin(); it != mOutfiles.end(); it++) {
-        it->close();
+        delete (*it);
     }
 }
 
@@ -55,10 +56,8 @@ void FileManager::add(seqan::CharString pattern, seqan::CharString filename) {
         mMapping[pattern] = mOutfiles.size();
         mFilenameMapping[filename] = mMapping[pattern];
 
-        FileWrapper fw = FileWrapper();
-        fw.filename = seqan::toCString(filename);
-        fw.deleteAtEnd = true;
-        
+        FileWrapper * fw = new FileWrapper(seqan::toCString(filename));
+        fw->deleteAtEnd = true;
         mOutfiles.push_back(fw);
 
         // get the sequence and its reverse complement
@@ -77,10 +76,10 @@ void FileManager::add(seqan::CharString pattern, seqan::CharString filename) {
 void FileManager::add(seqan::CharString pattern) {
     mMapping[pattern] = mOutfiles.size();
     
-    FileWrapper fw = FileWrapper();
-    fw.file = stdout;
-    fw.deleteAtEnd = false;
-    fw.fileOpened = true;
+    FileWrapper * fw = new FileWrapper(NULL);
+    fw->file = stdout;
+    fw->deleteAtEnd = false;
+    fw->fileOpened = true;
     mOutfiles.push_back(fw);
 
     // get the sequence and its reverse complement
@@ -92,12 +91,22 @@ void FileManager::add(seqan::CharString pattern) {
 
 
 FILE * FileManager::operator[] (seqan::CharString key) {
-    if (openCount >= OPEN_MAX) {
-        mOutfiles.at(mOpened.front()).close();
-        mOpened.pop();
-        openCount--;
+    //std::cerr<< "key: "<< key<<std::endl;
+    //std::cerr << "Mapping key: "<<mMapping[key]<<std::endl;
+    FileWrapper * fw = mOutfiles.at(mMapping[key]);
+    //std::cerr << "attempting to write to file: "<<fw->filename<<std::endl;
+    if(!fw->fileOpened) {
+        if (openCount >= OPEN_MAX) {
+            FileWrapper * last_opened = mOutfiles.at(mOpened.front());
+            //std::cerr<<"max opened file limit reached: "<<OPEN_MAX<<std::endl;
+            //std::cerr<<"closing "<<last_opened->filename<<"temporarily to make room for more"<<std::endl;
+            last_opened->close();
+            mOpened.pop();
+            openCount--;
+        }
+        fw->open();
+        mOpened.push(mMapping[key]);
     }
-    mOutfiles.at(mMapping[key]).open();
-    mOpened.push(mMapping[key]);
-    return mOutfiles.at(mMapping[key]).file;
+    return fw->file;
+    //return stdout;
 }

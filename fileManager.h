@@ -33,18 +33,27 @@ private:
 
 struct FileWrapper {
     FILE * file;
-    const char * filename;
+    char * filename;
     bool fileOpened;
     bool deleteAtEnd;
     
-    FileWrapper() : file(NULL), filename(NULL), fileOpened(false), deleteAtEnd(false)
-    {}
+    FileWrapper(const char * _name) : file(NULL), fileOpened(false), deleteAtEnd(false)
+    {
+        if(_name != NULL)
+            filename = strdup(_name);
+        else
+            filename = NULL;
+    }
+    ~FileWrapper() 
+    {
+        close();
+        free(filename);
+    }
     
     void open() {
         if(!fileOpened) {
             file = fopen(filename, "a");
         }
-        
         if (file == NULL) {
             throw FileManagerException("cannot open file");
         }
@@ -59,7 +68,7 @@ struct FileWrapper {
     }
 };
 
-typedef std::vector<FileWrapper>fpointer_t;
+typedef std::vector<FileWrapper *>fpointer_t;
 typedef std::map<seqan::CharString, int > fmapping_t;
 
 class FileManager
