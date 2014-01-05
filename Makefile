@@ -2,7 +2,7 @@ CXX=g++
 LIBS=-lz
 CXXFLAGS=-Wall -O2 -DSEQAN_HAS_ZLIB
 EXECUTABLE=fxtract
-SEQAN=../third_party/seqan-1.4.1/include
+SEQAN=third_party/seqan-1.4.1/include
 
 ifdef BZIP2
 	override CXXFLAGS := $(CXXFLAGS) -DSEQAN_HAS_BZIP2

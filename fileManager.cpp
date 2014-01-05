@@ -7,8 +7,8 @@
 
 #include <seqan/sequence.h>
 #include <seqan/modifier.h>
-#include <sys/syslimits.h>
 #include "fileManager.h"
+#define OPEN_MAX 256
 
 FileManager::FileManager(std::map<seqan::CharString, seqan::CharString>& mapping){
     std::map<seqan::CharString, seqan::CharString>::iterator it;
