@@ -13,7 +13,7 @@ ifdef DEBUG
 	override CXXFLAGS := $(CXXFLAGS) -ggdb
 endif
 
-all: main.o fileManager.o $(EXECUTABLE)
+all: main.o fileManager.o WuManber.o $(EXECUTABLE)
 
 clean:
 	rm *.o
@@ -29,5 +29,8 @@ main.o: main.cpp util.h
 fileManager.o: fileManager.cpp fileManager.h
 	$(CXX) -c $(CXXFLAGS) -I$(SEQAN) $< -o $@
 
-$(EXECUTABLE): main.o fileManager.o
+WuManber.o: WuManber.cpp 
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(EXECUTABLE): main.o fileManager.o WuManber.o
 	$(CXX) $(CXXFLAGS) -I$(SEQAN) -o $(EXECUTABLE) $^ $(LIBS)
