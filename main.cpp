@@ -19,7 +19,6 @@
 
 #include "util.h"
 #include "fileManager.h"
-#include "WuManber.h"
 
 
 #define VERSION "0.3"
@@ -161,8 +160,7 @@ void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
 int main(int argc, char * argv[])
 {
     
-    //seqan::String<seqan::String<char> > pattern_list;
-    std::vector<std::string> pattern_list;
+    seqan::String<seqan::String<char> > pattern_list;
     FileManager manager;
     Options opts;
 
@@ -183,10 +181,8 @@ int main(int argc, char * argv[])
 
         manager.add(pattern);
         
-        //seqan::appendValue(pattern_list, pattern);
-        //seqan::appendValue(pattern_list, rcpattern);
-        pattern_list.push_back(seqan::toCString(pattern));
-        pattern_list.push_back(seqan::toCString(rcpattern));
+        seqan::appendValue(pattern_list, pattern);
+        seqan::appendValue(pattern_list, rcpattern);
 
     } else {
         if (opt_idx > argc - 1) {
@@ -203,14 +199,21 @@ int main(int argc, char * argv[])
         fmapping_t::iterator it;
         for(it = manager.begin(); it != manager.end(); ++it) {
             //std::cout << "pattern: "<<it->first<<" bound to index: "<<it->second<<std::endl;
-            //seqan::appendValue(pattern_list, it->first);
-            pattern_list.push_back(seqan::toCString(it->first));
+            seqan::appendValue(pattern_list, it->first);
+        }
+    }
+    typedef std::set<seqan::CharString> LookupTable;
+    LookupTable lookup;
+    if (opts.header) {
+
+        typedef seqan::Iterator<seqan::String<seqan::CharString> >::Type TStringSetIterator;
+        for (TStringSetIterator it = begin(pattern_list); it != end(pattern_list); ++it) {
+              lookup.insert( value(it) );
         }
     }
 
-    //WuMa needle(pattern_list);
-    WuManber needle = WuManber();
-    needle.Initialize(pattern_list);
+    WuMa needle(pattern_list);
+    
     
     seqan::SequenceStream read1(argv[opt_idx++]);
     if (!isGood(read1))
@@ -239,22 +242,43 @@ int main(int argc, char * argv[])
             if (readRecord(mate2.id, mate2.seq, mate2.qual, read2) != 0) {
                 std::cerr<<"Malformed record"<<std::endl;
             }
-            //seqan::Finder<seqan::CharString> finder(mate1.seq);
-            int found_pos = -1;
-            std::string found_pattern = needle.Search(seqan::length(mate1.seq), seqan::toCString(mate1.seq), pattern_list, found_pos);
-            if (found_pos != -1) {
-
-                printPair(mate1, mate2, std::cout);
-
-            } else {
-                std::string found_pattern = needle.Search(seqan::length(mate2.seq), seqan::toCString(mate2.seq), pattern_list, found_pos);
-                //seqan::Finder<seqan::CharString> finder(mate2.seq);
-                //seqan::setHaystack(finder, mate2.seq);
-                if (found_pos != -1) {
-                    //printPair(mate1, mate2, manager[pattern_list[seqan::position(needle)]]);
-                    printPair(mate1, mate2, std::cout);
+            if (opts.header) {
+                seqan::StringSet<seqan::CharString> header_parts;
+                seqan::strSplit(header_parts, mate1.id, ' ', false, 1);
+                LookupTable::iterator pos = lookup.find(header_parts[0]);
+                if(pos != lookup.end()) {
+                    printPair(mate1, mate2, manager[header_parts[0]]);
+                    lookup.erase(pos);
+                    if(lookup.empty()) {
+                        break;
+                    }
+                } else {
+                    seqan::clear(header_parts);
+                    seqan::strSplit(header_parts, mate2.id, ' ', false, 1);
+                    if(lookup.find(header_parts[0]) != lookup.end()) {
+                        printPair(mate1, mate2, manager[header_parts[0]]);
+                        lookup.erase(pos);
+                        if(lookup.empty()) {
+                            break;
+                        }
+                    }
                 }
+            }
+            else {
+                seqan::Finder<seqan::CharString> finder(mate1.seq);
+                if (seqan::find(finder, needle)) {
+
+                    printPair(mate1, mate2, manager[pattern_list[seqan::position(needle)]]);
+
+                } else {
+                    seqan::Finder<seqan::CharString> finder(mate2.seq);
+                    //seqan::setHaystack(finder, mate2.seq);
+                    if (seqan::find(finder, needle)) {
+                        printPair(mate1, mate2, manager[pattern_list[seqan::position(needle)]]);
+                        //printPair(mate1, mate2, std::cout);
+                    }
                     
+                }
             }
         }
     } else {
@@ -263,11 +287,23 @@ int main(int argc, char * argv[])
             if (readRecord(mate1.id, mate1.seq, mate1.qual, read1) != 0) {
                 std::cerr<<"Malformed record"<<std::endl;
             }
-            int found_pos = -1;
-            std::string found_pattern = needle.Search(seqan::length(mate1.seq), seqan::toCString(mate1.seq), pattern_list, found_pos);
-            //seqan::Finder<seqan::CharString> finder(mate1.seq);
-            if (found_pos != -1) {
-                printSingle(mate1, std::cout);
+            if(opts.header) {
+                seqan::StringSet<seqan::CharString> header_parts;
+
+                seqan::strSplit(header_parts, mate1.id, ' ', false, 1);
+                LookupTable::iterator pos = lookup.find(seqan::value(header_parts, 0));
+                if(pos != lookup.end()) {
+                    printSingle(mate1, manager[seqan::value(header_parts,0)]);
+                    lookup.erase(pos);
+                    if(lookup.empty()) {
+                        break;
+                    }
+                }
+            } else {
+                seqan::Finder<seqan::CharString> finder(mate1.seq);
+                if (seqan::find(finder, needle)) {
+                    printSingle(mate1, manager[pattern_list[seqan::position(needle)]]);
+                }
             }
         }
     }
