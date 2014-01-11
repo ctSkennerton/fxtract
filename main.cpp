@@ -21,7 +21,7 @@
 #include "fileManager.h"
 
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 
 struct Fx
 {
@@ -214,7 +214,7 @@ int main(int argc, char * argv[])
 
     WuMa needle(pattern_list);
     
-    
+    try { 
     seqan::SequenceStream read1(argv[opt_idx++]);
     if (!isGood(read1))
         std::cerr << "Could not open read1 file\n";
@@ -234,7 +234,6 @@ int main(int argc, char * argv[])
                 break;
             }
 
-            
             if (readRecord(mate1.id, mate1.seq, mate1.qual, read1) != 0) {
                 std::cerr<<"Malformed record"<<std::endl;
             }
@@ -307,7 +306,10 @@ int main(int argc, char * argv[])
             }
         }
     }
-    
+    } catch(FileManagerException& e) {
+        std::cerr << e.what()<<std::endl;
+        return 1;
+    }
     return 0;
     
     

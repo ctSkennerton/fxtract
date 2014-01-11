@@ -9,8 +9,31 @@
 #include <seqan/seq_io.h>
 #include <seqan/modifier.h>
 #include "fileManager.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include <libgen.h>
 #define OPEN_MAX 256
 
+void FileWrapper::open() {
+    if(!fileOpened) {
+        file = fopen(filename, "a");
+    }
+    if (file == NULL) {
+        char buffer[1024];
+        sprintf(buffer, "cannot open file %s: %s\n", filename, strerror(errno));
+        throw FileManagerException(buffer);
+    }
+    fileOpened = true;
+}
+
+void FileWrapper::close() {
+    if(fileOpened & deleteAtEnd) {
+        fclose(file);
+        fileOpened = false;
+    }
+}
 FileManager::FileManager(std::map<seqan::CharString, seqan::CharString>& mapping){
     std::map<seqan::CharString, seqan::CharString>::iterator it;
     for (it = mapping.begin(); it != mapping.end(); it++) {
@@ -59,6 +82,8 @@ void FileManager::add(seqan::CharString pattern, seqan::CharString filename) {
         FileWrapper * fw = new FileWrapper(seqan::toCString(filename));
         fw->deleteAtEnd = true;
         mOutfiles.push_back(fw);
+
+        mkdir_p(seqan::toCString(filename));
 
         // get the sequence and its reverse complement
         // pointing to the output file
@@ -109,4 +134,60 @@ FILE * FileManager::operator[] (seqan::CharString key) {
     }
     return fw->file;
     //return stdout;
+}
+
+bool FileManager::mkdir_p(const char * filename)
+{
+    // dirname can modify the path so need to make a copy
+    char * ftmp = strdup(filename);
+    char * dir = dirname(ftmp);
+    char errorbuf[1024];
+    struct stat s;
+    int err = stat(dir, &s);
+    if(-1 == err) {
+        if(ENOENT == errno) {
+            /* does not exist */
+            char tmp[256];
+            char *p = NULL;
+            size_t len;
+
+            snprintf(tmp, sizeof(tmp),"%s",dir);
+            len = strlen(tmp);
+            if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+            for(p = tmp + 1; *p; p++) {
+                if(*p == '/') {
+                    *p = 0;
+                    if( -1 == mkdir(tmp, S_IRWXU)) {
+                        sprintf(errorbuf, "error when making directory %s: %s\n", tmp, strerror(errno));
+                        goto error;
+                    }
+                    *p = '/';
+                }
+            }
+            if( -1 == mkdir(tmp, S_IRWXU)) {
+                sprintf(errorbuf, "error when making directory %s: %s\n", tmp, strerror(errno));
+                goto error;
+            }
+        } else {
+            sprintf(errorbuf, "error when stat of %s: %s\n", dir, strerror(errno));
+            goto error;
+        }
+    } else {
+        if(s.st_mode & S_IFDIR && s.st_mode & S_IRWXU) {
+            /* it's a dir */
+            goto success;
+        } else {
+            /* exists but is no dir */
+            sprintf(errorbuf, "file %s exists but is not a directory or is not writable", dir);
+            goto error;
+        }
+    }
+
+success:
+    free(ftmp);
+    return true;
+error:
+    free(ftmp);
+    throw FileManagerException(errorbuf);
 }

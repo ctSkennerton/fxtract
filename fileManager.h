@@ -49,23 +49,9 @@ struct FileWrapper {
         close();
         free(filename);
     }
-    
-    void open() {
-        if(!fileOpened) {
-            file = fopen(filename, "a");
-        }
-        if (file == NULL) {
-            throw FileManagerException("cannot open file");
-        }
-        fileOpened = true;
-    }
-    
-    void close() {
-        if(fileOpened & deleteAtEnd) {
-            fclose(file);
-            fileOpened = false;
-        }
-    }
+
+    void open();
+    void close();
 };
 
 typedef std::vector<FileWrapper *>fpointer_t;
@@ -87,6 +73,8 @@ public:
 
     fpointer_t mOutfiles;
 private:
+    bool mkdir_p(const char * filename);
+
     int openCount;
     fmapping_t mMapping;
     fmapping_t mFilenameMapping;
