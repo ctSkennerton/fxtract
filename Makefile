@@ -2,7 +2,7 @@ CXX=g++
 LIBS=
 CXXFLAGS=-Wall -O2
 EXECUTABLE=fxtract
-SEQAN=../third_party/seqan-1.4.1/include
+SEQAN=third_party/seqan-1.4.1/include
 
 ifdef ZLIB
 	override CXXFLAGS := $(CXXFLAGS) -DSEQAN_HAS_ZLIB
@@ -21,7 +21,7 @@ endif
 all: main.o fileManager.o $(EXECUTABLE)
 
 clean:
-	rm main.o fileManager.o fxtract
+	-rm main.o fileManager.o fxtract
 
 test: $(EXECUTABLE)
 	cd ../test/
