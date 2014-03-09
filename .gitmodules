@@ -1,3 +1,6 @@
 [submodule "sds"]
 	path = sds
 	url = git@github.com:antirez/sds.git
+[submodule "aho-corasick"]
+	path = aho-corasick
+	url = git@github.com:mischasan/aho-corasick.git

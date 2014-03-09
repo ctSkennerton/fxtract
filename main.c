@@ -16,6 +16,7 @@
 #include "khash.h"
 #include "sds/sds.h"
 #include "Fx.h"
+#include "aho-corasick/acism.h"
 
 #define VERSION "1.0-alpha"
 
@@ -26,30 +27,36 @@ typedef struct _Options
     bool   fasta;
     bool   fastq;
     bool   header;
+    bool   quality;
+    bool   regex;
+    bool   exact;
+    bool   rc;
     char * pattern_file;
 } Options;
 
-KHASH_INIT(s2s, sds, sds, 1, kh_str_hash_func, kh_str_hash_equal)
+KHASH_INIT(s2s, sds, sds, 1, kh_str_hash_func, kh_str_hash_equal);
+
 
 void options_init(Options * opts) {
     opts->gzip = false; opts->bzip2 = false; opts->fasta = false; opts->fastq = false; opts->header = false; opts->pattern_file = NULL;
+    opts->rc =false;
 }
 
 
 void printSingle(Fx * mate1, FILE * out ) {
-    if (mate1->qual_start) {
+    if (mate1->qualStart) {
         fputc('@', out);
-        fwrite(mate1->data + mate1->header_start, 1, mate1->header_len, out);
+        fwrite(mate1->data + mate1->headerStart, 1, mate1->headerLen, out);
         fputc('\n', out);
-        fwrite(mate1->data + mate1->seq_start, 1, mate1->seq_len, out);
+        fwrite(mate1->data + mate1->seqStart, 1, mate1->seqLen, out);
         fputs("\n+\n", out);
-        fwrite(mate1->data + mate1->qual_start, 1, mate1->qual_len, out);
+        fwrite(mate1->data + mate1->qualStart, 1, mate1->qualLen, out);
         fputc('\n', out);
     } else {
         fputc('>', out);
-        fwrite(mate1->data + mate1->header_start, 1, mate1->header_len, out);
+        fwrite(mate1->data + mate1->headerStart, 1, mate1->headerLen, out);
         fputc('\n', out);
-        fwrite(mate1->data + mate1->seq_start, 1, mate1->seq_len, out);
+        fwrite(mate1->data + mate1->seqStart, 1, mate1->seqLen, out);
         fputc('\n', out);
     }
 }
@@ -63,6 +70,9 @@ void printPair(Fx* mate1, Fx* mate2, FILE * out) {
 void usage() {
     puts("fxtract [-hHv] -f pattern_file | pattern <read1.fx> [<read2.fx>]");
     puts("\t-H           Evaluate patterns in the context of headers (default: sequences)");
+    puts("\t-Q           Evaluate patterns in the context of quality scores (default: sequences)");
+    puts("\t-e           pattern is a regular expression (default: literal substring)");
+    puts("\t-x           pattern exactly matches the whole string (default: literal substring)");
     //puts("\t-j           Force bzip2 formatting");
     //puts("\t-q           Force fastq formatting");
     puts("\t-f <file>    File containing patterns, one per line");
@@ -73,7 +83,7 @@ void usage() {
 
 int parseOptions(int argc,  char * argv[], Options* opts) {
     int c;
-    while ((c = getopt(argc, argv, "Hhf:zjqV")) != -1 ) {
+    while ((c = getopt(argc, argv, "Hhf:zjqVrQex")) != -1 ) {
         switch (c) {
             case 'f':
                 opts->pattern_file = optarg;
@@ -84,8 +94,14 @@ int parseOptions(int argc,  char * argv[], Options* opts) {
             case 'j':
                 opts->bzip2 = true;
                 break;
-            case 'q':
-                opts->fastq = true;
+            case 'Q':
+                opts->quality = true;
+                break;
+            case 'e':
+                opts->regex = true;
+                break;
+            case 'x':
+                opts->exact = true;
                 break;
             case 'V':
                 puts(VERSION);
@@ -93,6 +109,9 @@ int parseOptions(int argc,  char * argv[], Options* opts) {
                 break;
             case 'H':
                 opts->header = true;
+                break;
+            case 'r':
+                opts->rc = true;
                 break;
             case 'h':
             default:
@@ -138,60 +157,38 @@ void tokenizePatternFile(FILE * in, FileManager * fmanager) {
 
 int main(int argc, char * argv[])
 {
-    
-    seqan::String<seqan::String<char> > pattern_list;
-    FileManager manager;
+    kvec_t(sds) pattern_list;
+    FileManager * manager = filemanager_new();
     Options opts;
 
-    int opt_idx = parseOptions(argc, argv, opts);
+    int opt_idx = parseOptions(argc, argv, &opts);
 
     if(opts.pattern_file == NULL) {
 
         if( opt_idx >= argc) {
-            std::cout<< "Please provide a pattern (or pattern file) and at least one input file"<<std::endl;
+            puts("Please provide a pattern (or pattern file) and at least one input file");
             usage();
         } else if (opt_idx >= argc - 1) {
-            std::cout << "Please provide an input file (or two)" <<std::endl;
+            puts("Please provide an input file (or two)");
             usage();
         }
-        seqan::CharString pattern = argv[opt_idx++];
-        seqan::CharString rcpattern = pattern;
-        seqan::reverseComplement(rcpattern);
-
-        manager.add(pattern);
+        sds pattern = sdsnew(argv[opt_idx++]);
+        filemanager_add(manager, pattern);
+        if(opts.rc) {
+            sds rcpattern = sdsdup(pattern);
+            reverseComplement(rcpattern, sdslen(rcpattern));
+            filemanager_add(manager, rcpattern);
+        }
         
-        seqan::appendValue(pattern_list, pattern);
-        seqan::appendValue(pattern_list, rcpattern);
 
     } else {
         if (opt_idx > argc - 1) {
-            std::cout << "Please provide an input file (or two)"<<std::endl;
+            puts("Please provide an input file (or two)");
             usage();
         }
-        std::ifstream in(opts.pattern_file);
-        try{
-            tokenizePatternFile(in, manager);
-        } catch(FileManagerException& e) {
-            std::cerr << e.what() <<std::endl;
-            return 1;
-        }
-        fmapping_t::iterator it;
-        for(it = manager.begin(); it != manager.end(); ++it) {
-            //std::cout << "pattern: "<<it->first<<" bound to index: "<<it->second<<std::endl;
-            seqan::appendValue(pattern_list, it->first);
-        }
+        FILE * in = fopen(opts.pattern_file, "r");
+        tokenizePatternFile(in, manager);
     }
-    typedef std::set<seqan::CharString> LookupTable;
-    LookupTable lookup;
-    if (opts.header) {
-
-        typedef seqan::Iterator<seqan::String<seqan::CharString> >::Type TStringSetIterator;
-        for (TStringSetIterator it = begin(pattern_list); it != end(pattern_list); ++it) {
-              lookup.insert( value(it) );
-        }
-    }
-
-    WuMa needle(pattern_list);
     
     
     seqan::SequenceStream read1(argv[opt_idx++]);

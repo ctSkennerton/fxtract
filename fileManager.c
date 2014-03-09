@@ -7,6 +7,8 @@
 
 #include <sys/syslimits.h>
 #include "fileManager.h"
+#include "util.h"
+
 
 FileWrapper * filewrapper_new() {
     FileWrapper * fw = (FileWrapper *) malloc(sizeof(FileWrapper));
@@ -108,9 +110,12 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
     k_pm = kh_get(s2d, fm->patternMapping, pattern);
     if(k_pm == kh_end(fm->patternMapping)) {
         
+        sds rc_pattern = sdsdup(pattern);
+        reverseComplement(rc_pattern, sdslen(rc_pattern));
         // add in the pattern key to the hash
         k_pm = kh_put(s2d, fm->patternMapping, sdsdup(pattern), &ret);
-        
+        khiter_t rck_pm = kh_put(s2d, fm->patternMapping, rc_pattern, &ret);
+
         // now check to see if the filename has been seen before
         k_fm = kh_get(s2d, fm->filenameMapping, filename);
         if (k_fm == kh_end(fm->filenameMapping)) {
@@ -123,6 +128,7 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
             // after we push on the filewrapper below the index will match
             int n = kv_size(fm->files);
             kh_value(fm->patternMapping, k_pm) = n;
+            kh_value(fm->patternMapping, rck_pm) = n;
 
             k_fm = kh_put(s2d, fm->filenameMapping, stored_name, &ret);
             kh_value(fm->filenameMapping, k_fm) = n;
@@ -135,7 +141,9 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
             // the file has been seen before but the pattern hasn't
             // so we need to associate the new pattern with the file
             kh_value(fm->patternMapping, k_pm) = kh_value(fm->filenameMapping, k_fm);
+            kh_value(fm->patternMapping, rck_pm) = kh_value(fm->filenameMapping, k_fm);
         }   
+        
     } else {
         // the pattern is known
         // check to see if the filename is also known
@@ -159,6 +167,9 @@ void filemanager_add(FileManager * fm, sds pattern) {
     if(k_pm == kh_end(fm->patternMapping)) {
         // add in the pattern key to the hash
         k_pm = kh_put(s2d, fm->patternMapping, sdsdup(pattern), &ret);
+        sds rc_pattern = sdsdup(pattern);
+        reverseComplement(rc_pattern, sdslen(rc_pattern));
+        khiter_t rck_pm = kh_put(s2d, fm->patternMapping, rc_pattern, &ret);
 
         k_fm = kh_get(s2d, fm->filenameMapping, "");
         if (k_fm == kh_end(fm->filenameMapping)) {
@@ -184,6 +195,7 @@ void filemanager_add(FileManager * fm, sds pattern) {
             // the file has been seen before but the pattern hasn't
             // so we need to associate the new pattern with the file
             kh_value(fm->patternMapping, k_pm) = kh_value(fm->filenameMapping, k_fm);
+            kh_value(fm->patternMapping, rck_pm) = kh_value(fm->filenameMapping, k_fm);
         }   
     } else {
         // the pattern is known
