@@ -42,10 +42,10 @@ typedef struct _FileManager {
 
 /* Allocate memory for a new FileWrapper and initalise values
  */
-FileWapper *  filewrapper_new    ();
+FileWrapper *  filewrapper_new    ();
 /* Same as above but sets the filename field to the function argument
  */
-FileWapper *  filewrapper_new2   (sds filename);
+FileWrapper *  filewrapper_new2   (sds filename);
 /* Deallocate memory
  */
 void          filewrapper_delete (FileWrapper * fw);
@@ -66,6 +66,7 @@ void          filemanager_add    (FileManager * fm, sds key);
 void          filemanager_add2   (FileManager * fm, sds key, sds fileName);
 int           filemanager_pqcomp (const void  * a, const void * b);
 FILE *        filemanager_find   (FileManager * fm, sds key);
+int           filemanager_npat   (FileManager * fm);
 
 
 #endif /* !__FILEMANAGER_H__ */

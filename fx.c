@@ -8,8 +8,8 @@
 KSEQ_INIT(int, read);
 
 struct _Fxstream {
-    kseq_t * seq1; // array of input files one for each mate in the pair
-    kseq_t * seq2; // array of input files one for each mate in the pair
+    kseq_t * seq1;
+    kseq_t * seq2;
     int      fd1;
     int      fd2;
     bool     interleaved;
@@ -71,6 +71,8 @@ Fxstream * fxstream_open(const char * file1, const char * file2, bool interleave
     return fs;
 }
 
+//TODO: BSD grep has support for zip, bzip2 and xz files out of the box
+//http://svnweb.freebsd.org/base/head/usr.bin/grep/file.c?view=markup
 int fxstream_read(Fxstream * stream, Fx * read1, Fx * read2) {
     int len1, len2;
     len1 = kseq_read(stream->seq1);
@@ -79,7 +81,7 @@ int fxstream_read(Fxstream * stream, Fx * read1, Fx * read2) {
         read2 = NULL;
         return len1;
     }
-    
+
     read1->data = sdscpy(read1->data, stream->seq1->name.s);
     read1->headerStart = 0;
     read1->headerLen = strlen(stream->seq1->name.s);
@@ -158,7 +160,7 @@ void fxstream_close(Fxstream * stream) {
 int main(int argc, char * argv[]) {
     Fxstream * stream = fxstream_open(argv[1], NULL, false);
     Fx * read = fx_new();
-    if(fxstream_read(stream, read, NULL) >= 0) {
+    while(fxstream_read(stream, read, NULL) >= 0) {
         sds repr = sdsempty();
         fx_repr(read, &repr);
         puts(repr);

@@ -1,38 +1,25 @@
-CXX=g++
-LIBS=
-CXXFLAGS=-Wall -O2
-EXECUTABLE=fxtract
-SEQAN=third_party/seqan-1.4.1/include
+CC := cc
+LZ := -lz
+CFLAGS := -Wall -O2
+EXECUTABLE := fxtract
+OBJECTS := main.o fileManager.o fx.o pq.o sds/sds.o util.o aho-corasick/msutil.o
+PREFIX := /usr/local/bin
+acism := aho-corasick
 
-ifdef ZLIB
-	override CXXFLAGS := $(CXXFLAGS) -DSEQAN_HAS_ZLIB
-	override LIBS := $(LIBS) -lz
-endif
+include aho-corasick/GNUmakefile
 
-ifdef BZIP2
-	override CXXFLAGS := $(CXXFLAGS) -DSEQAN_HAS_BZIP2
-	override LIBS := $(LIBS) -lbz2
-endif
 
-ifdef DEBUG
-	override CXXFLAGS := $(CXXFLAGS) -ggdb
-endif
+all: $(EXECUTABLE)
 
-all: main.o fileManager.o $(EXECUTABLE)
+install: $(EXECUTABLE)
+	$(INSTALL) -dc $< $(PREFIX)
 
-clean:
-	-rm main.o fileManager.o fxtract
+clean: $(OBJECTS)
+	-rm $(OBJECTS)
 
 test: $(EXECUTABLE)
 	cd ../test/
 	./run.sh
 
-
-main.o: main.cpp util.h
-	$(CXX) -c $(CXXFLAGS) -I$(SEQAN) $< -o $@
-
-fileManager.o: fileManager.cpp fileManager.h
-	$(CXX) -c $(CXXFLAGS) -I$(SEQAN) $< -o $@
-
-$(EXECUTABLE): main.o fileManager.o
-	$(CXX) $(CXXFLAGS) -I$(SEQAN) -o $(EXECUTABLE) $^ $(LIBS)
+$(EXECUTABLE): $(OBJECTS) $(acism)/libacism.a
+	$(CC) $(CFLAGS) -o $(EXECUTABLE) $^ $(LZ)

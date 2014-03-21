@@ -17,6 +17,7 @@ FileWrapper * filewrapper_new() {
     fw->fileOpened = false;
     fw->closeAtEnd = false;
     fw->recordsWritten = 0;
+    return fw;
 }
 
 FileWrapper * filewrapper_new2(sds filename) {
@@ -26,6 +27,7 @@ FileWrapper * filewrapper_new2(sds filename) {
     fw->fileOpened = false;
     fw->closeAtEnd = false;
     fw->recordsWritten = 0;
+    return fw;
 }
     
 int filewrapper_open(FileWrapper * fw) {
@@ -109,7 +111,7 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
     // check if the pattern has been seen before
     k_pm = kh_get(s2d, fm->patternMapping, pattern);
     if(k_pm == kh_end(fm->patternMapping)) {
-        
+
         sds rc_pattern = sdsdup(pattern);
         reverseComplement(rc_pattern, sdslen(rc_pattern));
         // add in the pattern key to the hash
@@ -142,8 +144,8 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
             // so we need to associate the new pattern with the file
             kh_value(fm->patternMapping, k_pm) = kh_value(fm->filenameMapping, k_fm);
             kh_value(fm->patternMapping, rck_pm) = kh_value(fm->filenameMapping, k_fm);
-        }   
-        
+        }
+
     } else {
         // the pattern is known
         // check to see if the filename is also known
@@ -204,9 +206,9 @@ void filemanager_add(FileManager * fm, sds pattern) {
         if (k_fm == kh_end(fm->filenameMapping) || !strcmp("", kh_key(fm->filenameMapping, k_fm))) {
             // same pattern different filename
             // error in mapping file
-            fprintf(stderr, "[WARNING]: The pattern \"%s\" is associated with both \"%s\" and \"%s\"\n", 
-                    pattern, 
-                    "(stdout)", 
+            fprintf(stderr, "[WARNING]: The pattern \"%s\" is associated with both \"%s\" and \"%s\"\n",
+                    pattern,
+                    "(stdout)",
                     kh_key(fm->filenameMapping, k_fm));
         }
     }
@@ -242,4 +244,8 @@ FILE * filemanager_find (FileManager * fm, sds key) {
     }
     ++fw->recordsWritten;
     return fw->file;
+}
+
+int filemanager_npat(FileManager * fm) {
+    return kh_size(fm->patternMapping);
 }
