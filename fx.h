@@ -28,27 +28,12 @@ typedef struct _Fxstream Fxstream;
  *
  * if it is a fasta record then qual_start will equal -1
  */
-typedef struct {
-    int    headerStart;
-    int    seqStart;
-    int    qualStart;
-    int    headerLen;
-    int    seqLen;
-    int    qualLen;
-    sds    data;
-} Fx;
 
-/* Same as Fx however without the string data.  Only contains the references
- * to another buffer stored externally
- */
 typedef struct {
-    int    headerStart;
-    int    seqStart;
-    int    qualStart;
-    int    headerLen;
-    int    seqLen;
-    int    qualLen;
-} Fxref;
+    sds name;
+    sds seq;
+    sds qual;
+} Fx;
 
 
 Fx * fx_new              ();
@@ -56,9 +41,10 @@ Fx * fx_new2             (char * d);
 void fx_delete           (Fx * fx);
 int  fx_len              (Fx * fx);
 bool fx_isfasta          (Fx * fx);
-void fx_repr             (Fx * fx, sds * reprString);
+//void fx_repr             (Fx * fx, sds * reprString);
 void fx_tofa             (Fx * fx, sds * out);
 void fx_tofq             (Fx * fx, sds * out);
+int  fx_fputs            (Fx * fx, FILE * out);
 
 /*
  * file1:       File name containing reads from the first mate in the pair

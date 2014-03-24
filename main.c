@@ -36,7 +36,7 @@ typedef struct _Options
     char * f_flag;
 } Options;
 
-KHASH_INIT(s2s, sds, sds, 1, kh_str_hash_func, kh_str_hash_equal);
+//KHASH_INIT(s2s, sds, sds, 1, kh_str_hash_func, kh_str_hash_equal);
 
 
 void options_init(Options * opts) {
@@ -52,21 +52,7 @@ void options_init(Options * opts) {
 
 
 void printSingle(Fx * mate1, FILE * out ) {
-    if (mate1->qualStart) {
-        fputc('@', out);
-        fwrite(mate1->data + mate1->headerStart, 1, mate1->headerLen, out);
-        fputc('\n', out);
-        fwrite(mate1->data + mate1->seqStart, 1, mate1->seqLen, out);
-        fputs("\n+\n", out);
-        fwrite(mate1->data + mate1->qualStart, 1, mate1->qualLen, out);
-        fputc('\n', out);
-    } else {
-        fputc('>', out);
-        fwrite(mate1->data + mate1->headerStart, 1, mate1->headerLen, out);
-        fputc('\n', out);
-        fwrite(mate1->data + mate1->seqStart, 1, mate1->seqLen, out);
-        fputc('\n', out);
-    }
+    fx_fputs(mate1, out);
 }
 
 void printPair(Fx* mate1, Fx* mate2, FILE * out) {
@@ -84,7 +70,7 @@ static const char usage_msg[] =\
     "\t-E           pattern is a posix extended regular expression (default: literal substring)\n"
     "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
     "\t-x           pattern exactly matches the whole string (default: literal substring)\n"
-    "\t-I           The read file in interleaved (both pairs in a single file)\n"
+    "\t-I           The read file is interleaved (both pairs in a single file)\n"
     //puts("\t-j           Force bzip2 formatting");
     //puts("\t-q           Force fastq formatting");
     "\t-f <file>    File containing patterns, one per line\n"
@@ -173,7 +159,7 @@ on_match(int strnum, int textpos, MEMREF const *pattv)
 
 int main(int argc, char * argv[])
 {
-    kvec_t(sds) pattern_list;
+    //kvec_t(sds) pattern_list;
     FileManager * manager = filemanager_new();
     Options opts;
     options_init(&opts);
@@ -189,7 +175,8 @@ int main(int argc, char * argv[])
             puts("Please provide an input file (or two)");
             usage(usage_msg);
         }
-        sds pattern = sdsnew(argv[opt_idx++]);
+        sds pattern = sdsnew(argv[opt_idx]);
+        ++opt_idx;
         filemanager_add(manager, pattern);
         if(opts.r_flag) {
             sds rcpattern = sdsdup(pattern);
@@ -210,10 +197,10 @@ int main(int argc, char * argv[])
     Fxstream * stream = NULL;
     if(opt_idx == argc - 2) {
         // two read files
-        stream = fxstream_open(argv[opt_idx+1],argv[opt_idx+2],opts.I_flag);
-    } else if (opt_idx == argc -1) {
+        stream = fxstream_open(argv[opt_idx],argv[opt_idx+1],opts.I_flag);
+    } else if (opt_idx == argc - 1) {
         // one read file
-        stream = fxstream_open(argv[opt_idx+1], NULL, opts.I_flag);
+        stream = fxstream_open(argv[opt_idx], NULL, opts.I_flag);
     }
 
     if(NULL == stream) {
@@ -224,27 +211,26 @@ int main(int argc, char * argv[])
     Fx * mate1 = fx_new();
     Fx * mate2 = fx_new();
 
-    MEMBUF patt = chomp(slurp(argv[1]));
+    MEMBUF patt = chomp(slurp(argv[opt_idx]));
     if (!patt.ptr)
-        die("cannot read %s", argv[1]);
+        die("cannot read %s", argv[opt_idx]);
 
     int npatts = filemanager_npat(manager);
     MEMREF *pattv =  malloc(npatts * sizeof(MEMREF));  //refsplit(patt.ptr, '\n', &npatts);
     int i;
-    for (khiter_t k = kh_begin(manager->patternMapping), i = 0; k != kh_end(manager->patternMapping); ++k, ++i) {
-        pattv[i].ptr = kh_key(manager->patternMapping, k);
-        pattv[i].len = sdslen(kh_key(manager->patternMapping, k));
+    khiter_t k;
+    for (k = kh_begin(manager->patternMapping), i = 0; k != kh_end(manager->patternMapping); ++k, ++i) {
+        if(kh_exist(manager->patternMapping, k)) {
+            pattv[i].ptr = kh_key(manager->patternMapping, k);
+            pattv[i].len = sdslen(kh_key(manager->patternMapping, k));
+        }
     }
 
     ACISM *psp = acism_create(pattv, npatts);
     while(fxstream_read(stream, mate1, mate2) >= 0) {
         int state;
-        MEMREF data = {mate1->data, sdslen(mate1->data)};
+        MEMREF data = {mate1->seq, sdslen(mate1->seq)};
         (void)acism_more(psp, data, (ACISM_ACTION*)on_match, pattv, &state);
-        //sds repr = sdsempty();
-        //fx_repr(read, &repr);
-        //puts(repr);
-        //sdsfree(repr);
     }
     fx_delete(mate1);
     fx_delete(mate2);

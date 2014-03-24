@@ -16,27 +16,25 @@ struct _Fxstream {
 };
 
 Fx * fx_new() {
-    Fx * fx = malloc(sizeof(Fx));
-    fx->data = sdsempty();
-    return fx;
-}
-
-Fx * fx_new2(char * d) {
-    Fx * fx = malloc(sizeof(Fx));
-    fx->data = sdsnew(d);
+    Fx * fx  = malloc(sizeof(Fx));
+    fx->name = sdsempty();
+    fx->seq  = sdsempty();
+    fx->qual = sdsempty();
     return fx;
 }
 
 void fx_delete(Fx * fx) {
-    sdsfree(fx->data);
+    sdsfree(fx->name);
+    sdsfree(fx->seq);
+    sdsfree(fx->qual);
     free(fx);
 }
 
-void fx_repr(Fx * fx, sds * reprString) {
-    (*reprString) = sdscpy((*reprString), fx->data);
-    (*reprString) = sdscatprintf((*reprString), "\n%*c%*c", fx->headerLen, '|', fx->seqLen, '|');
-    if(fx->qualStart != -1) {
-        (*reprString) = sdscatprintf((*reprString), "%*c", fx->qualLen, '|');
+int fx_fputs(Fx * fx, FILE * out) {
+    if(fx->qual != NULL) {
+        return fprintf(out, ">%s\n%s\n", fx->name, fx->seq);
+    } else {
+        return fprintf(out, "@%s\n%s\n+\n%s\n", fx->name, fx->seq, fx->qual);
     }
 }
 
@@ -82,20 +80,11 @@ int fxstream_read(Fxstream * stream, Fx * read1, Fx * read2) {
         return len1;
     }
 
-    read1->data = sdscpy(read1->data, stream->seq1->name.s);
-    read1->headerStart = 0;
-    read1->headerLen = strlen(stream->seq1->name.s);
-    read1->data = sdscat(read1->data, stream->seq1->seq.s);
-    read1->seqStart = read1->headerLen;
-    read1->seqLen = strlen(stream->seq1->seq.s);
+    read1->name = sdscpylen(read1->name, stream->seq1->name.s, stream->seq1->name.l);
+    read1->seq = sdscpylen(read1->seq, stream->seq1->seq.s, stream->seq1->seq.l);
 
     if(stream->seq1->qual.s) {
-        read1->data = sdscat(read1->data, stream->seq1->qual.s);
-        read1->qualStart = read1->headerLen + read1->seqLen;
-        read1->qualLen = strlen(stream->seq1->qual.s);
-    } else {
-        read1->qualStart = -1;
-        read1->qualLen = -1;
+        read1->qual = sdscpylen(read1->qual, stream->seq1->qual.s, stream->seq1->qual.l);
     }
 
     if(stream->interleaved) {
@@ -105,21 +94,13 @@ int fxstream_read(Fxstream * stream, Fx * read1, Fx * read2) {
             read2 = NULL;
             return len2;
         }
-        read2->data = sdscpy(read2->data, stream->seq1->name.s);
-        read2->headerStart = 0;
-        read2->headerLen = strlen(stream->seq1->name.s);
-        read2->data = sdscat(read2->data, stream->seq1->seq.s);
-        read2->seqStart = read2->headerLen;
-        read2->seqLen = strlen(stream->seq1->seq.s);
+        read2->name = sdscpylen(read2->name, stream->seq1->name.s, stream->seq1->name.l);
+        read2->seq = sdscpylen(read2->seq, stream->seq1->seq.s, stream->seq1->seq.l);
 
         if(stream->seq1->qual.s) {
-            read2->data = sdscat(read2->data, stream->seq1->qual.s);
-            read2->qualStart = read2->headerLen + read2->seqLen;
-            read2->qualLen = strlen(stream->seq1->qual.s);
-        } else {
-            read2->qualStart = -1;
-            read2->qualLen = -1;
+            read2->qual = sdscpylen(read2->qual, stream->seq1->qual.s, stream->seq1->qual.l);
         }
+
     } else if(stream->seq2 != NULL) {
         len2 = kseq_read(stream->seq2);
         if(len2 < 0) {
@@ -127,20 +108,11 @@ int fxstream_read(Fxstream * stream, Fx * read1, Fx * read2) {
             read2 = NULL;
             return len2;
         }
-        read2->data = sdscpy(read2->data, stream->seq1->name.s);
-        read2->headerStart = 0;
-        read2->headerLen = strlen(stream->seq1->name.s);
-        read2->data = sdscat(read2->data, stream->seq1->seq.s);
-        read2->seqStart = read2->headerLen;
-        read2->seqLen = strlen(stream->seq1->seq.s);
+        read2->name = sdscpylen(read2->name, stream->seq2->name.s, stream->seq2->name.l);
+        read2->seq = sdscpylen(read2->seq, stream->seq2->seq.s, stream->seq2->seq.l);
 
-        if(stream->seq1->qual.s) {
-            read2->data = sdscat(read2->data, stream->seq1->qual.s);
-            read2->qualStart = read2->headerLen + read2->seqLen;
-            read2->qualLen = strlen(stream->seq1->qual.s);
-        } else {
-            read2->qualStart = -1;
-            read2->qualLen = -1;
+        if(stream->seq2->qual.s) {
+            read2->qual = sdscpylen(read2->qual, stream->seq2->qual.s, stream->seq2->qual.l);
         }
     }
     return len1;
@@ -161,10 +133,7 @@ int main(int argc, char * argv[]) {
     Fxstream * stream = fxstream_open(argv[1], NULL, false);
     Fx * read = fx_new();
     while(fxstream_read(stream, read, NULL) >= 0) {
-        sds repr = sdsempty();
-        fx_repr(read, &repr);
-        puts(repr);
-        sdsfree(repr);
+        printf(">%s\n%s\n", read->name, read->seq);
     }
     fx_delete(read);
     fxstream_close(stream);

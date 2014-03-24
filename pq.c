@@ -350,19 +350,12 @@ void free_priority_queue_data( priority_queue **pq, void (*free_function)( void 
  */
 void free_priority_queue( priority_queue **pq )
 {
-        if ( *pq == NULL )
+        if ( *pq != NULL )
         {
-                printf( "Priority queue is uninitialized.\n" );
-        }
-        else
-        {
-                printf( "Frees priority queue memory..." );
 
                 free( (*pq)->heap_array );
                 free( (*pq) );
                 (*pq) = NULL;
-
-                printf( "OK\n" );
         }
 }
 

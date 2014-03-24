@@ -29,12 +29,12 @@ FileWrapper * filewrapper_new2(sds filename) {
     fw->recordsWritten = 0;
     return fw;
 }
-    
+
 int filewrapper_open(FileWrapper * fw) {
     if(!fw->fileOpened) {
         fw->file = fopen(fw->filename, "a");
     }
-    
+
     if (fw->file == NULL) {
         perror("problem opening file");
         return 1;
@@ -51,6 +51,7 @@ void filewrapper_close(FileWrapper * fw) {
 }
 
 void filewrapper_delete(FileWrapper * fw) {
+    if(fw == NULL) return;
     filewrapper_close(fw);
     sdsfree(fw->filename);
     free(fw);
@@ -61,6 +62,7 @@ FileManager * filemanager_new() {
     fm->openCount = 0;
     fm->queue = create_priority_queue(OPEN_MAX, &filemanager_pqcomp);
     fm->patternMapping = kh_init(s2d);
+    fm->filenameMapping = kh_init(s2d);
     kv_init(fm->files);
     return fm;
 }
@@ -68,14 +70,16 @@ FileManager * filemanager_new() {
 void filemanager_delete(FileManager * fm) {
     khiter_t k;
     for (k = kh_begin(fm->patternMapping); k != kh_end(fm->patternMapping); ++k) {
-		if (kh_exist(fm->patternMapping, k)){ 
+		if (kh_exist(fm->patternMapping, k)){
             sdsfree(kh_key(fm->patternMapping, k));
             int file_index  = kh_value(fm->patternMapping, k);
-            filewrapper_delete(kv_A(fm->files, file_index));
+            FileWrapper * tmp = kv_A(fm->files, file_index);
+            filewrapper_delete(tmp);
+            kv_A(fm->files, file_index) = NULL;
         }
     }
     /*for (k = kh_begin(fm->filenameMapping); k != kh_end(fm->filenameMapping); ++k) {
-		if (kh_exist(fm->filenameMapping, k)){ 
+		if (kh_exist(fm->filenameMapping, k)){
             sdsfree(kh_key(fm->filenameMapping, k));
 
             // this shouldn't be needed since we delete them above
@@ -94,7 +98,7 @@ int filemanager_pqcomp(const void * a, const void * b) {
     const FileWrapper * A = (FileWrapper *) a;
     const FileWrapper * B = (FileWrapper *) b;
     /* Most priority queues give you back the element with the highest value
-     * but here we want the smallest values (ie files used least often) so 
+     * but here we want the smallest values (ie files used least often) so
      * less than (<) actually returns GREATER
      */
     if(A->recordsWritten < B->recordsWritten)
@@ -138,6 +142,7 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
             fw->filename = stored_name;
             fw->closeAtEnd = true;
             kv_push(FileWrapper *, fm->files, fw);
+            FileWrapper * tmp = kv_A(fm->files, n);
 
         } else {
             // the file has been seen before but the pattern hasn't
@@ -154,8 +159,8 @@ void filemanager_add2(FileManager * fm, sds pattern, sds filename) {
             // same pattern different filename
             // error in mapping file
             fprintf(stderr, "[WARNING]: The pattern \"%s\" is associated with both \"%s\" and \"%s\"\n", 
-                    pattern, 
-                    filename, 
+                    pattern,
+                    filename,
                     kh_key(fm->filenameMapping, k_fm));
         }
     }
@@ -192,13 +197,14 @@ void filemanager_add(FileManager * fm, sds pattern) {
             fw->file = stdout;
             fw->fileOpened = true;
             kv_push(FileWrapper *, fm->files, fw);
+            FileWrapper * tmp = kv_A(fm->files, n);
 
         } else {
             // the file has been seen before but the pattern hasn't
             // so we need to associate the new pattern with the file
             kh_value(fm->patternMapping, k_pm) = kh_value(fm->filenameMapping, k_fm);
             kh_value(fm->patternMapping, rck_pm) = kh_value(fm->filenameMapping, k_fm);
-        }   
+        }
     } else {
         // the pattern is known
         // check to see if the filename is also known
