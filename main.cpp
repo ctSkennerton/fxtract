@@ -39,14 +39,14 @@ struct Fx
 
 struct Options
 {
-    bool gzip;
+    bool force_stdout;
     bool bzip2;
     bool fasta;
     bool fastq;
     bool header;
     char * pattern_file;
     Options() :
-    gzip(false), bzip2(false), fasta(false), fastq(false), header(false), pattern_file(NULL)
+    force_stdout(false), bzip2(false), fasta(false), fastq(false), header(false), pattern_file(NULL)
     {}
 };
 
@@ -75,7 +75,7 @@ void usage() {
     std::cout<< "fxtract [-hHv] -f pattern_file | pattern <read1.fx> [<read2.fx>]\n";
     std::cout<<"\t-H           Evaluate patterns in the context of headers (default: sequences)\n";
     //std::cout<<"\t-j           Force bzip2 formatting\n";
-    //std::cout<<"\t-q           Force fastq formatting\n";
+    std::cout<<"\t-s           Force output to go to stdout, even if the pattern file says otherwise\n";
     std::cout<<"\t-f <file>    File containing patterns, one per line" <<std::endl;
     std::cout<<"\t-h           Print this help"<<std::endl;
     std::cout<<"\t-V           Print version"<<std::endl;
@@ -84,13 +84,13 @@ void usage() {
 
 int parseOptions(int argc,  char * argv[], Options& opts) {
     int c;
-    while ((c = getopt(argc, argv, "Hhf:zjqV")) != -1 ) {
+    while ((c = getopt(argc, argv, "Hhf:sjqV")) != -1 ) {
         switch (c) {
             case 'f':
                 opts.pattern_file = optarg;
                 break;
-            case 'z':
-                opts.gzip = true;
+            case 's':
+                opts.force_stdout = true;
                 break;
             case 'j':
                 opts.bzip2 = true;
@@ -114,7 +114,7 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
     return optind;
 }
 
-void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
+void tokenizePatternFile(std::istream& in, FileManager& fmanager, bool forceStdout) {
     // tokenize a line from the pattern file.  The first part will be the pattern and the second
     // part is the file to write to.
     std::map<seqan::CharString, seqan::CharString> results;
@@ -130,16 +130,19 @@ void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
                 results[fields[0]] = "";
                 break;
             default:
-                
-                if(results.find(fields[0]) != results.end()) {
-                    // patterns are the same
-                    if(results[fields[0]] != fields[1]) {
-                        // warn user if it was supposed to go to a different file
-                        std::cerr << "pattern "<< fields[0] << " not unique but different output file requested: " << results[fields[0]] <<" and "<< fields[1] <<std::endl;
-                        std::cerr << "output will only go into " <<results[fields[0]]<<std::endl;
-                    }
+                if(forceStdout) {
+                    results[fields[0]] = "";
                 } else {
-                    results[fields[0]] = fields[1];
+                    if(results.find(fields[0]) != results.end()) {
+                        // patterns are the same
+                        if(results[fields[0]] != fields[1]) {
+                            // warn user if it was supposed to go to a different file
+                            std::cerr << "pattern "<< fields[0] << " not unique but different output file requested: " << results[fields[0]] <<" and "<< fields[1] <<std::endl;
+                            std::cerr << "output will only go into " <<results[fields[0]]<<std::endl;
+                        }
+                    } else {
+                        results[fields[0]] = fields[1];
+                    }
                 }
                 break;
         }
@@ -191,7 +194,7 @@ int main(int argc, char * argv[])
         }
         std::ifstream in(opts.pattern_file);
         try{
-            tokenizePatternFile(in, manager);
+            tokenizePatternFile(in, manager, opts.force_stdout);
         } catch(FileManagerException& e) {
             std::cerr << e.what() <<std::endl;
             return 1;
