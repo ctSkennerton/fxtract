@@ -65,6 +65,8 @@ int Fxstream::read( Fx ** read1, Fx ** read2) {
         (*read2) = NULL;
         return len1;
     }
+    (*read1)->len = len1;
+
     (*read1)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
     (*read1)->name = strncpy((*read1)->name, this->seq1->name.s, this->seq1->name.l);
 
@@ -83,6 +85,8 @@ int Fxstream::read( Fx ** read1, Fx ** read2) {
             (*read2) = NULL;
             return len2;
         }
+        (*read2)->len = len2;
+
         (*read2)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
         (*read2)->name = strncpy((*read2)->name, this->seq1->name.s, this->seq1->name.l);
 
@@ -101,6 +105,8 @@ int Fxstream::read( Fx ** read1, Fx ** read2) {
             (*read2) = NULL;
             return len2;
         }
+        (*read2)->len = len2;
+
         (*read2)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
         (*read2)->name = strncpy((*read2)->name, this->seq1->name.s, this->seq1->name.l);
 
@@ -113,6 +119,7 @@ int Fxstream::read( Fx ** read1, Fx ** read2) {
         }
     } else {
         (*read2) = NULL;
+
     }
     return len1;
 }
