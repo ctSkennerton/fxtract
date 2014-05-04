@@ -7,11 +7,13 @@ struct Fx {
   char * name;
   char * seq;
   char * qual;
+  int len;
 
   Fx(){
     name = NULL;
     seq = NULL;
     qual = NULL;
+    len = 0;
   };
   ~Fx() {
     free(name);
@@ -19,10 +21,10 @@ struct Fx {
     free(qual);
   }
   size_t size() {
-    return strlen(seq);
+    return len;
   }
   size_t length() {
-    return strlen(seq);
+    return size();
   }
   bool isFasta() {
     return qual == NULL;
