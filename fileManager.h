@@ -12,75 +12,59 @@
 #ifndef __FILEMANAGER_H__
 #define __FILEMANAGER_H__
 
+#include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <vector>
 #include <queue>
-#include <cstdio>
 #include <string>
-#include <exception>
 
-#include <seqan/sequence.h>
-
-class FileManagerException : std::exception {
-public:
-    FileManagerException(const char * _msg) : msg(_msg) {}
-    const char* what() {
-        return msg;
-    }
-private:
-    const char * msg;
-};
+#ifndef OPEN_MAX
+#define OPEN_MAX 256
+#endif
 
 struct FileWrapper {
-    FILE * file;
-    char * filename;
-    bool fileOpened;
-    bool deleteAtEnd;
-    
-    FileWrapper(const char * _name) : file(NULL), fileOpened(false), deleteAtEnd(false)
-    {
-        if(_name != NULL)
-            filename = strdup(_name);
-        else
-            filename = NULL;
-    }
-    ~FileWrapper() 
-    {
-        close();
-        free(filename);
+    FILE *                     file;           // our file
+    std::string                filename;       // the filename that we are writting to
+    bool                       fileOpened;     // is our file opened?
+    bool                       closeAtEnd;     // should this FILE be closed when finished - not to be used for stdout, stderr
+    size_t                     recordsWritten; // count of fasta/fastq records written to this file - used in priority queue comparison
+
+    FileWrapper();
+    FileWrapper(std::string filename);
+    ~FileWrapper();
+    int open();
+    void close();
+
+};
+
+
+class Pqcomp {
+    public:
+    bool operator () (const FileWrapper * lhs, const FileWrapper * rhs) {
+        return lhs->recordsWritten > rhs->recordsWritten;
     }
 
     void open();
     void close();
 };
 
-typedef std::vector<FileWrapper *>fpointer_t;
-typedef std::map<seqan::CharString, int > fmapping_t;
 
-class FileManager
-{
-public:
-    FileManager() : openCount(0){}
-    FileManager(std::map<seqan::CharString, seqan::CharString>& mapping);
-    FileManager(std::vector<seqan::CharString>& mapping);
+struct FileManager {
+    int                        openCount;       // keep count of the number of files that we've opened
+    std::map<std::string, int>         patternMapping;  // hash of patterns to indexes into the array of filewrappers
+    std::map<std::string, int>         filenameMapping; // hash of filenames to indexes into the array of filewrappers
+    std::vector<FileWrapper *> files;           // An array of all of the file wrappers that are being managed
+    std::priority_queue<FileWrapper *, std::vector<FileWrapper *>, Pqcomp> closingQueue;          // priority queue used to determine which filewrapper should be closed first when there are too many
+
+    FileManager();
     ~FileManager();
-    fmapping_t::iterator begin();
-    fmapping_t::iterator end();
-    fmapping_t::iterator find(seqan::CharString key);
-    void add(seqan::CharString key, seqan::CharString file_name);
-    void add(seqan::CharString key);
-    FILE * operator[]( seqan::CharString key);
 
-    fpointer_t mOutfiles;
-private:
-    bool mkdir_p(const char * filename);
-
-    int openCount;
-    fmapping_t mMapping;
-    fmapping_t mFilenameMapping;
-    std::queue<int> mOpened;
+    void add(std::string key);
+    void add(std::string key, std::string fileName);
+    FILE * find(std::string key);
+    int size(){return static_cast<int>(patternMapping.size());}
 };
 
 
 #endif /* !__FILEMANAGER_H__ */
-

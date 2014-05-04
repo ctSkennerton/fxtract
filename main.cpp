@@ -6,312 +6,243 @@
 //  Copyright (c) 2013 Connor Skennerton. All rights reserved.
 //
 
-#include <fstream>
-#include <iostream>
-#include <set>
-#include <vector>
-#include <string>
 #include <unistd.h>
-
-#include <seqan/seq_io.h>
-#include <seqan/sequence.h>
-#include <seqan/find.h>
+#include <cstdio>
+#include <cassert>
 
 #include "util.h"
 #include "fileManager.h"
 
-
-#define VERSION "0.4"
-
-struct Fx
-{
-    seqan::CharString id;
-    seqan::CharString seq;
-    seqan::CharString qual;
-    
-    Fx()
-    {};
-    
-    Fx(seqan::CharString _id, seqan::CharString _seq, seqan::CharString _qual = "") :
-    id(_id), seq(_seq), qual(_qual){}
-};
-
+#include "Fx.h"
+extern "C" {
+#include "util/ssearch.h"
+#include "util/bpsearch.h"
+#include "util/msutil.h"
+}
+#define VERSION "1.0-alpha"
 
 struct Options
 {
-    bool gzip;
-    bool bzip2;
-    bool fasta;
-    bool fastq;
-    bool header;
-    char * pattern_file;
-    Options() :
-    gzip(false), bzip2(false), fasta(false), fastq(false), header(false), pattern_file(NULL)
+    bool   H_flag;
+    bool   Q_flag;
+    bool   G_flag;
+    bool   E_flag;
+    bool   x_flag;
+    bool   r_flag;
+    bool   I_flag;
+    char * f_flag;
+
+    Options() : H_flag(false),
+                Q_flag(false),
+                G_flag(false),
+                E_flag(false),
+                x_flag(false),
+                r_flag(false),
+                I_flag(false),
+                f_flag(NULL)
     {}
 };
 
-typedef seqan::Pattern<seqan::String<seqan::CharString>, seqan::WuManber> WuMa;
 
-
-void printSingle(Fx& mate1, FILE * out ) {
-    if (seqan::empty(mate1.qual)) {
-        //out<<">"<<mate1.id<<std::endl;
-        //out<<mate1.seq<<std::endl;
-        seqan::writeRecord(out, mate1.id, mate1.seq, seqan::Fasta());
-        
-    } else {
-        //std::cout<<"@"<<mate1.id<<'\n'<<mate1.seq<<"\n+\n"<<mate1.qual<<std::endl;
-        seqan::writeRecord(out, mate1.id, mate1.seq, mate1.qual, seqan::Fastq());
-    }
+void printSingle(Fx * mate1, FILE * out ) {
+    mate1->puts(out);
 }
 
-void printPair(Fx& mate1, Fx& mate2, FILE * out) {
+void printPair(Fx* mate1, Fx* mate2, FILE * out) {
     // match in the first read print out pair
     printSingle(mate1, out);
     printSingle(mate2, out);
 }
 
-void usage() {
-    std::cout<< "fxtract [-hHv] -f pattern_file | pattern <read1.fx> [<read2.fx>]\n";
-    std::cout<<"\t-H           Evaluate patterns in the context of headers (default: sequences)\n";
-    //std::cout<<"\t-j           Force bzip2 formatting\n";
-    //std::cout<<"\t-q           Force fastq formatting\n";
-    std::cout<<"\t-f <file>    File containing patterns, one per line" <<std::endl;
-    std::cout<<"\t-h           Print this help"<<std::endl;
-    std::cout<<"\t-V           Print version"<<std::endl;
-    exit(1);
-}
+//void usage() {
+static const char usage_msg[] =\
+    "[-hHv] {-f pattern_file | pattern} <read1.fx> [<read2.fx>]\n"
+    "\t-H           Evaluate patterns in the context of headers (default: sequences)\n"
+    "\t-Q           Evaluate patterns in the context of quality scores (default: sequences)\n"
+    "\t-G           pattern is a posix basic regular expression (default: literal substring)\n"
+    "\t-E           pattern is a posix extended regular expression (default: literal substring)\n"
+    "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
+    "\t-x           pattern exactly matches the whole string (default: literal substring)\n"
+    "\t-I           The read file is interleaved (both pairs in a single file)\n"
+    "\t-f <file>    File containing patterns, one per line\n"
+    "\t-h           Print this help\n"
+    "\t-V           Print version\n";
+//   exit(1);
+//}
 
 int parseOptions(int argc,  char * argv[], Options& opts) {
     int c;
-    while ((c = getopt(argc, argv, "Hhf:zjqV")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhIf:zjqVrQGEPx")) != -1 ) {
         switch (c) {
             case 'f':
-                opts.pattern_file = optarg;
+                opts.f_flag = optarg;
                 break;
-            case 'z':
-                opts.gzip = true;
+
+            case 'I':
+                opts.I_flag = true;
                 break;
-            case 'j':
-                opts.bzip2 = true;
+
+            case 'Q':
+                opts.Q_flag = true;
                 break;
-            case 'q':
-                opts.fastq = true;
+            case 'e':
+                opts.r_flag = true;
+                break;
+            case 'x':
+                opts.x_flag = true;
                 break;
             case 'V':
-                std::cout <<VERSION<<std::endl;
+                puts(VERSION);
                 exit(1);
                 break;
             case 'H':
-                opts.header = true;
+                opts.H_flag = true;
+                break;
+            case 'r':
+                opts.r_flag = true;
                 break;
             case 'h':
             default:
-                usage();
+                usage(usage_msg);
                 break;
         }
     }
     return optind;
 }
 
-void tokenizePatternFile(std::istream& in, FileManager& fmanager) {
+void split( std::vector<std::string> & theStringVector,  /* Altered/returned value */
+       std::string theString,
+       const  std::string theDelimiter)
+{
+    assert(theDelimiter.size() > 0); // My own ASSERT macro.
+
+    size_t  start = 0, end = 0;
+
+    while ( end != std::string::npos)
+    {
+        end = theString.find( theDelimiter, start);
+
+        // If at end, use length=maxLength.  Else use length=end-start.
+        theStringVector.push_back( theString.substr( start,
+                       (end == std::string::npos) ? std::string::npos : end - start));
+
+        // If at end, use start=maxSize.  Else use start=end+delimiter.
+        start = (   ( end > (std::string::npos - theDelimiter.size()) )
+                  ?  std::string::npos  :  end + theDelimiter.size());
+    }
+}
+
+void tokenizePatternFile(FILE * in, FileManager&  fmanager) {
     // tokenize a line from the pattern file.  The first part will be the pattern and the second
     // part is the file to write to.
-    std::map<seqan::CharString, seqan::CharString> results;
-    std::vector<std::string> fields;
-    std::string line;
+    char * lineptr = NULL;
+    size_t n;
 
-    while(std::getline(in, line)) {
-        tokenize(line, fields);
+
+    while(getline(&lineptr, &n, in) != -1) {
+        std::vector<std::string> fields;
+        split(fields, lineptr, "\t");
         switch(fields.size()) {
             case 0:
                 break;
             case 1:
-                results[fields[0]] = "";
+                fmanager.add(fields[0]);
                 break;
             default:
-                
-                if(results.find(fields[0]) != results.end()) {
-                    // patterns are the same
-                    if(results[fields[0]] != fields[1]) {
-                        // warn user if it was supposed to go to a different file
-                        std::cerr << "pattern "<< fields[0] << " not unique but different output file requested: " << results[fields[0]] <<" and "<< fields[1] <<std::endl;
-                        std::cerr << "output will only go into " <<results[fields[0]]<<std::endl;
-                    }
-                } else {
-                    results[fields[0]] = fields[1];
-                }
+                fmanager.add(fields[0], fields[1]);
                 break;
         }
-        fields.clear();
     }
-    fields.clear();
-    
-    std::map<seqan::CharString, seqan::CharString>::iterator it;
-    for(it = results.begin(); it != results.end(); ++it) {
-        if(it->second == "") {
-            fmanager.add(it->first);
-        } else {
-            fmanager.add(it->first, it->second);
-        }
-    }
+    free(lineptr);
+}
+static int
+on_match(int strnum, const char *textp, void const * context)
+{
+	Fx * read = (Fx *) context;
+    read->puts(stdout);
+    return  1;
 }
 
 int main(int argc, char * argv[])
 {
-    
-    seqan::String<seqan::String<char> > pattern_list;
+    //kvec_t(sds) pattern_list;
     FileManager manager;
     Options opts;
 
     int opt_idx = parseOptions(argc, argv, opts);
 
-    if(opts.pattern_file == NULL) {
+    if(opts.f_flag == NULL) {
 
         if( opt_idx >= argc) {
-            std::cout<< "Please provide a pattern (or pattern file) and at least one input file"<<std::endl;
-            usage();
+            puts("Please provide a pattern (or pattern file) and at least one input file");
+            usage(usage_msg);
         } else if (opt_idx >= argc - 1) {
-            std::cout << "Please provide an input file (or two)" <<std::endl;
-            usage();
+            puts("Please provide an input file (or two)");
+            usage(usage_msg);
         }
-        seqan::CharString pattern = argv[opt_idx++];
-        seqan::CharString rcpattern = pattern;
-        seqan::reverseComplement(rcpattern);
-
+        std::string pattern = argv[opt_idx];
+        ++opt_idx;
         manager.add(pattern);
-        
-        seqan::appendValue(pattern_list, pattern);
-        seqan::appendValue(pattern_list, rcpattern);
+        if(opts.r_flag) {
+          std::string rcpattern = pattern;
+            reverseComplement(rcpattern);
+            manager.add(rcpattern);
+        }
+
 
     } else {
         if (opt_idx > argc - 1) {
-            std::cout << "Please provide an input file (or two)"<<std::endl;
-            usage();
+            puts("Please provide an input file (or two)");
+            usage(usage_msg);
         }
-        std::ifstream in(opts.pattern_file);
-        try{
-            tokenizePatternFile(in, manager);
-        } catch(FileManagerException& e) {
-            std::cerr << e.what() <<std::endl;
-            return 1;
-        }
-        fmapping_t::iterator it;
-        for(it = manager.begin(); it != manager.end(); ++it) {
-            //std::cout << "pattern: "<<it->first<<" bound to index: "<<it->second<<std::endl;
-            seqan::appendValue(pattern_list, it->first);
-        }
-    }
-    typedef std::set<seqan::CharString> LookupTable;
-    LookupTable lookup;
-    if (opts.header) {
-
-        typedef seqan::Iterator<seqan::String<seqan::CharString> >::Type TStringSetIterator;
-        for (TStringSetIterator it = begin(pattern_list); it != end(pattern_list); ++it) {
-              lookup.insert( value(it) );
-        }
+        FILE * in = fopen(opts.f_flag, "r");
+        tokenizePatternFile(in, manager);
     }
 
-    WuMa needle(pattern_list);
-    
-    try { 
-    seqan::SequenceStream read1(argv[opt_idx++]);
-    if (!isGood(read1))
-        std::cerr << "Could not open read1 file\n";
-    // Read one record.
-    Fx mate1 = Fx();
-    if (opt_idx < argc) {
-        // we have a mate file
-        seqan::SequenceStream read2(argv[opt_idx]);
-        if (!isGood(read2))
-            std::cerr << "Could not open read2 file\n";
-        Fx mate2 = Fx();
+    Fxstream stream;
+    if(opt_idx == argc - 2) {
+        // two read files
+        stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
+    } else if (opt_idx == argc - 1) {
+        // one read file
+        stream.open(argv[opt_idx], NULL, opts.I_flag);
+    }
 
-        while (!atEnd(read1))
-        {
-            if (atEnd(read2)) {
-                std::cerr<< "files have different number of reads"<<std::endl;
-                break;
-            }
 
-            if (readRecord(mate1.id, mate1.seq, mate1.qual, read1) != 0) {
-                std::cerr<<"Malformed record"<<std::endl;
-            }
+    Fx * mate1 = new Fx();
+    Fx * mate2 = new Fx();
 
-            if (readRecord(mate2.id, mate2.seq, mate2.qual, read2) != 0) {
-                std::cerr<<"Malformed record"<<std::endl;
-            }
-            if (opts.header) {
-                seqan::StringSet<seqan::CharString> header_parts;
-                seqan::strSplit(header_parts, mate1.id, ' ', false, 1);
-                LookupTable::iterator pos = lookup.find(header_parts[0]);
-                if(pos != lookup.end()) {
-                    printPair(mate1, mate2, manager[header_parts[0]]);
-                    lookup.erase(pos);
-                    if(lookup.empty()) {
-                        break;
-                    }
-                } else {
-                    seqan::clear(header_parts);
-                    seqan::strSplit(header_parts, mate2.id, ' ', false, 1);
-                    if(lookup.find(header_parts[0]) != lookup.end()) {
-                        printPair(mate1, mate2, manager[header_parts[0]]);
-                        lookup.erase(pos);
-                        if(lookup.empty()) {
-                            break;
-                        }
-                    }
-                }
-            }
-            else {
-                seqan::Finder<seqan::CharString> finder(mate1.seq);
-                if (seqan::find(finder, needle)) {
 
-                    printPair(mate1, mate2, manager[pattern_list[seqan::position(needle)]]);
+    std::string conc;
+    std::map<std::string, int>::iterator iter;
+    for (iter = manager.patternMapping.begin(); iter != manager.patternMapping.end() ; ++iter ) {
+        conc += iter->first + "\n";
+    }
+    char * concstr  = (char *) malloc(conc.size() * sizeof(char *));
+    strncpy(concstr, conc.c_str(), conc.size());
+    concstr[conc.size()-1] = '\0';
+    int npatts;
+    MEMREF *pattv =  refsplit(concstr, '\n', &npatts);
 
-                } else {
-                    seqan::Finder<seqan::CharString> finder(mate2.seq);
-                    //seqan::setHaystack(finder, mate2.seq);
-                    if (seqan::find(finder, needle)) {
-                        printPair(mate1, mate2, manager[pattern_list[seqan::position(needle)]]);
-                        //printPair(mate1, mate2, std::cout);
-                    }
-                    
-                }
-            }
-        }
-    } else {
-        while (!atEnd(read1))
-        {
-            if (readRecord(mate1.id, mate1.seq, mate1.qual, read1) != 0) {
-                std::cerr<<"Malformed record"<<std::endl;
-            }
-            if(opts.header) {
-                seqan::StringSet<seqan::CharString> header_parts;
+    SSEARCH *ssp = ssearch_create(pattv, npatts);
 
-                seqan::strSplit(header_parts, mate1.id, ' ', false, 1);
-                LookupTable::iterator pos = lookup.find(seqan::value(header_parts, 0));
-                if(pos != lookup.end()) {
-                    printSingle(mate1, manager[seqan::value(header_parts,0)]);
-                    lookup.erase(pos);
-                    if(lookup.empty()) {
-                        break;
-                    }
-                }
-            } else {
-                seqan::Finder<seqan::CharString> finder(mate1.seq);
-                if (seqan::find(finder, needle)) {
-                    printSingle(mate1, manager[pattern_list[seqan::position(needle)]]);
-                }
+    while(stream.read(&mate1, &mate2) >= 0) {
+        MEMREF data = {mate1->seq, strlen(mate1->seq)};
+        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, (void *)mate1);
+        if(ret == 0){
+            // read one did not have a match check read 2 if it exists
+            if(mate2 != NULL) {
+                MEMREF data2 = {mate2->seq, strlen(mate2->seq)};
+                ssearch_scan(ssp, data2, (SSEARCH_CB)on_match, (void *)mate2);
             }
         }
     }
-    } catch(FileManagerException& e) {
-        std::cerr << e.what()<<std::endl;
-        return 1;
-    }
+
+    free(concstr);
+    delete mate1;
+    delete mate2;
+    stream.close();
+    free(pattv);
+
     return 0;
-    
-    
 }
-
