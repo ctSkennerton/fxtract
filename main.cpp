@@ -268,6 +268,7 @@ int main(int argc, char * argv[])
     delete mate2;
     stream.close();
     free(pattv);
+    ssearch_destroy(ssp);
 
     return 0;
 }
