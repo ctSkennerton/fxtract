@@ -2,11 +2,11 @@ CC := cc
 LZ := -lz
 CFLAGS := -Wall -O2 -ggdb
 EXECUTABLE := fxtract
-OBJECTS := main.o fileManager.o fx.o pq.o sds/sds.o util.o aho-corasick/msutil.o
+util := util
+OBJECTS := main.o fileManager.o fx.o util.o
 PREFIX := /usr/local/bin
-acism := aho-corasick
 
-include aho-corasick/GNUmakefile
+include $(util)/GNUmakefile
 
 
 all: $(EXECUTABLE)
@@ -21,5 +21,5 @@ test: $(EXECUTABLE)
 	cd ../test/
 	./run.sh
 
-$(EXECUTABLE): $(OBJECTS) $(acism)/libacism.a
-	$(CC) $(CFLAGS) -o $(EXECUTABLE) $^ $(LZ)
+$(EXECUTABLE): $(OBJECTS) $(util)/libmsutil.a
+	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $^ $(LZ)

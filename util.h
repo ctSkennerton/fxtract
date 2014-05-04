@@ -7,6 +7,7 @@
 
 #ifndef __UTIL_H__
 #define __UTIL_H__
+#include <string>
 static char comp_tab[] = {
     0,   1,	2,	 3,	  4,   5,	6,	 7,	  8,   9,  10,	11,	 12,  13,  14,	15,
     16,  17,  18,	19,	 20,  21,  22,	23,	 24,  25,  26,	27,	 28,  29,  30,	31,
@@ -18,7 +19,7 @@ static char comp_tab[] = {
 	'p', 'q', 'y', 's', 'a', 'a', 'b', 'w', 'x', 'r', 'z', 123, 124, 125, 126, 127
 };
 
-void reverseComplement(char * str, int length);
+void reverseComplement(std::string& str);
 
 #endif /* !__UTIL_H__ */
 

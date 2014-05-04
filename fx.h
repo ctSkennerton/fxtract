@@ -1,50 +1,34 @@
 #ifndef _FX_H_
 #define _FX_H_ 1
-#include <stdbool.h>
-#include "sds/sds.h"
+#include <cstring>
 #include "kseq.h"
 
-struct _Fxstream;
-typedef struct _Fxstream Fxstream;
-/*typedef struct {
-    kseq_t * seq1; // array of input files one for each mate in the pair
-    kseq_t * seq2; // array of input files one for each mate in the pair
-    int      fd1;
-    int      fd2;
-    bool     interleaved;
-} Fxstream;*/
+struct Fx {
+  char * name;
+  char * seq;
+  char * qual;
 
-/* Representation of a fasta/fastq record
- * All of the string data is defined in a single block called `data'
- * with references to the beginning of the header, sequence and quality
- * data witin that block.  The members header_len, seq_len, qual_len give the
- * length of the associated data
- * 
- * HEADERSEQUENCEQUALITY
- * |     |       |
- * |     |       qual_start
- * |     seq_start
- * header_start
- *
- * if it is a fasta record then qual_start will equal -1
- */
-
-typedef struct {
-    sds name;
-    sds seq;
-    sds qual;
-} Fx;
-
-
-Fx * fx_new              ();
-Fx * fx_new2             (char * d);
-void fx_delete           (Fx * fx);
-int  fx_len              (Fx * fx);
-bool fx_isfasta          (Fx * fx);
-//void fx_repr             (Fx * fx, sds * reprString);
-void fx_tofa             (Fx * fx, sds * out);
-void fx_tofq             (Fx * fx, sds * out);
-int  fx_fputs            (Fx * fx, FILE * out);
+  Fx(){
+    name = NULL;
+    seq = NULL;
+    qual = NULL;
+  };
+  ~Fx() {
+    free(name);
+    free(seq);
+    free(qual);
+  }
+  size_t size() {
+    return strlen(seq);
+  }
+  size_t length() {
+    return strlen(seq);
+  }
+  bool isFasta() {
+    return qual == NULL;
+  }
+  int puts(FILE * out);
+};
 
 /*
  * file1:       File name containing reads from the first mate in the pair
@@ -57,8 +41,21 @@ int  fx_fputs            (Fx * fx, FILE * out);
  * returns:     Pointer to a newly allocated Fxstream that must be deleted with
  *              fxtream_close
  */
-Fxstream * fxstream_open   (const char * file1, const char * file2, bool interleaved);
-int        fxstream_read   (Fxstream * stream, Fx * read1, Fx * read2);
-void       fxstream_close  (Fxstream * stream);
+
+KSEQ_INIT(int, read);
+
+struct Fxstream {
+    kseq_t * seq1;
+    kseq_t * seq2;
+    int      fd1;
+    int      fd2;
+    bool     interleaved;
+
+    Fxstream(){}
+    int open(const char * file1, const char * file2, bool interleaved);
+    int close();
+    int read (Fx ** read1, Fx ** read2);
+
+};
 
 #endif
