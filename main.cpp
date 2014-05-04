@@ -10,11 +10,14 @@
 #include <cstdio>
 #include <cassert>
 #include <regex.h>
+#ifdef HAVE_PCRE
+#include <pcre.h>
+#endif
 
 #include "util.h"
 #include "fileManager.h"
-
 #include "Fx.h"
+
 extern "C" {
 #include "util/ssearch.h"
 #include "util/bpsearch.h"
@@ -31,6 +34,9 @@ struct Options
     bool   x_flag;
     bool   r_flag;
     bool   I_flag;
+#ifdef HAVE_PCRE
+    bool   P_flag;
+#endif
     char * f_flag;
 
     Options() : H_flag(false),
@@ -40,6 +46,9 @@ struct Options
                 x_flag(false),
                 r_flag(false),
                 I_flag(false),
+#ifdef HAVE_PCRE
+                P_flag(false),
+#endif
                 f_flag(NULL)
     {}
 };
@@ -62,7 +71,9 @@ static const char usage_msg[] =\
     "\t-Q           Evaluate patterns in the context of quality scores (default: sequences)\n"
     "\t-G           pattern is a posix basic regular expression (default: literal substring)\n"
     "\t-E           pattern is a posix extended regular expression (default: literal substring)\n"
+#ifdef HAVE_PCRE
     "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
+#endif
     "\t-x           pattern exactly matches the whole string (default: literal substring)\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
     "\t-f <file>    File containing patterns, one per line\n"
@@ -87,13 +98,17 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
             case 'I':
                 opts.I_flag = true;
                 break;
-
+#ifdef HAVE_PCRE
+            case 'P':
+                opts.P_flag = true;
+                break;
+#endif
             case 'Q':
                 opts.Q_flag = true;
                 break;
-            case 'e':
-                opts.r_flag = true;
-                break;
+            /*case 'e':
+                opts.e_flag = true;
+                break;*/
             case 'x':
                 opts.x_flag = true;
                 break;
@@ -302,6 +317,64 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
     delete mate2;
     return 0;
 }
+#ifdef HAVE_PCRE
+int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * pxr) {
+    Fx * mate1 = new Fx();
+    Fx * mate2 = new Fx();
+    int ovector[30];
+
+    while(stream.read(&mate1, &mate2) >= 0) {
+        MEMREF data;
+        if(opts.H_flag) {
+            data.ptr = mate1->name;
+            data.len = strlen(mate1->name);
+
+        } else if(opts.Q_flag){
+            if(!mate1->isFasta()) {
+                data.ptr = mate1->qual;
+                data.len = (size_t)mate1->len;
+            }
+        } else {
+            data.ptr = mate1->seq;
+            data.len = (size_t)mate1->len;
+        }
+
+        int ret = pcre_exec(pxr, NULL, data.ptr, data.len, 0, 0, ovector, 30);
+        if(ret == PCRE_ERROR_NOMATCH){
+            // read one did not have a match check read 2 if it exists
+            if(mate2 != NULL) {
+                if(opts.H_flag) {
+                    data.ptr = mate2->name;
+                    data.len = strlen(mate2->name);
+
+                } else if(opts.Q_flag){
+                    if(!mate2->isFasta()) {
+                        data.ptr = mate2->seq;
+                        data.len = (size_t)mate2->len;
+                    }
+                } else {
+                    data.ptr = mate2->seq;
+                    data.len = (size_t)mate2->len;
+                }
+                ret = pcre_exec(pxr, NULL, data.ptr, data.len, 0, 0, ovector, 30);
+                if(ret != (PCRE_ERROR_NOMATCH | 0)) {
+                    return 1;
+                } else if(ret == 0) {
+                    (void) on_match(0, NULL, mate1);
+                }
+            }
+        } else if(ret != 0) {
+            return 1;
+        } else {
+            (void) on_match(0, NULL, mate1);
+        }
+    }
+
+    delete mate1;
+    delete mate2;
+    return 0;
+}
+#endif
 
 int main(int argc, char * argv[])
 {
@@ -369,8 +442,33 @@ int main(int argc, char * argv[])
         regfree(&px_regex);
         stream.close();
         return ret;
+    }
+#ifdef HAVE_PCRE
+    else if (opts.P_flag) {
 
-    } else if(opts.f_flag) {
+        // PCRE regex
+        pcre *re;
+        const char *error;
+        int erroffset;
+
+        re = pcre_compile(
+            pattern.c_str(),              /* the pattern */
+            0,                    /* default options */
+            &error,               /* for error message */
+            &erroffset,           /* for error offset */
+            NULL);                /* use default character tables */
+        if (re == NULL) {
+            printf("PCRE compilation failed at offset %d: %s\n", erroffset, error);
+            return 1;
+        }
+
+        pcre_search(manager, stream, opts, re);
+        pcre_free(re);
+        stream.close();
+
+    }
+#endif
+    else if(opts.f_flag) {
         multipattern_search(manager, stream, opts);
 
     }
