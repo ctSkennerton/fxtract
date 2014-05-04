@@ -227,13 +227,38 @@ int main(int argc, char * argv[])
     SSEARCH *ssp = ssearch_create(pattv, npatts);
 
     while(stream.read(&mate1, &mate2) >= 0) {
-        MEMREF data = {mate1->seq, strlen(mate1->seq)};
+        MEMREF data;
+        if(opts.H_flag) {
+            data.ptr = mate1->name;
+            data.len = strlen(mate1->name);
+
+        } else if(opts.Q_flag){
+            if(!mate1->isFasta()) {
+                data.ptr = mate1->qual;
+                data.len = (size_t)mate1->len;
+            }
+        } else {
+            data.ptr = mate1->seq;
+            data.len = (size_t)mate1->len;
+        }
         int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, (void *)mate1);
         if(ret == 0){
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
-                MEMREF data2 = {mate2->seq, strlen(mate2->seq)};
-                ssearch_scan(ssp, data2, (SSEARCH_CB)on_match, (void *)mate2);
+                if(opts.H_flag) {
+                    data.ptr = mate2->name;
+                    data.len = strlen(mate2->name);
+
+                } else if(opts.Q_flag){
+                    if(!mate2->isFasta()) {
+                        data.ptr = mate2->seq;
+                        data.len = (size_t)mate2->len;
+                    }
+                } else {
+                    data.ptr = mate2->seq;
+                    data.len = (size_t)mate2->len;
+                }
+                ssearch_scan(ssp, data, (SSEARCH_CB)on_match, (void *)mate2);
             }
         }
     }
