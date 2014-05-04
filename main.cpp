@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cassert>
+#include <regex.h>
 
 #include "util.h"
 #include "fileManager.h"
@@ -77,7 +78,12 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
             case 'f':
                 opts.f_flag = optarg;
                 break;
-
+            case 'E':
+                opts.E_flag = true;
+                break;
+            case 'G':
+                opts.G_flag = true;
+                break;
             case 'I':
                 opts.I_flag = true;
                 break;
@@ -163,55 +169,11 @@ on_match(int strnum, const char *textp, void const * context)
     return  1;
 }
 
-int main(int argc, char * argv[])
-{
-    //kvec_t(sds) pattern_list;
-    FileManager manager;
-    Options opts;
-
-    int opt_idx = parseOptions(argc, argv, opts);
-
-    if(opts.f_flag == NULL) {
-
-        if( opt_idx >= argc) {
-            puts("Please provide a pattern (or pattern file) and at least one input file");
-            usage(usage_msg);
-        } else if (opt_idx >= argc - 1) {
-            puts("Please provide an input file (or two)");
-            usage(usage_msg);
-        }
-        std::string pattern = argv[opt_idx];
-        ++opt_idx;
-        manager.add(pattern);
-        if(opts.r_flag) {
-          std::string rcpattern = pattern;
-            reverseComplement(rcpattern);
-            manager.add(rcpattern);
-        }
-
-
-    } else {
-        if (opt_idx > argc - 1) {
-            puts("Please provide an input file (or two)");
-            usage(usage_msg);
-        }
-        FILE * in = fopen(opts.f_flag, "r");
-        tokenizePatternFile(in, manager);
-    }
-
-    Fxstream stream;
-    if(opt_idx == argc - 2) {
-        // two read files
-        stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
-    } else if (opt_idx == argc - 1) {
-        // one read file
-        stream.open(argv[opt_idx], NULL, opts.I_flag);
-    }
+int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
 
 
     Fx * mate1 = new Fx();
     Fx * mate2 = new Fx();
-
 
     std::string conc;
     std::map<std::string, int>::iterator iter;
@@ -266,9 +228,153 @@ int main(int argc, char * argv[])
     free(concstr);
     delete mate1;
     delete mate2;
-    stream.close();
     free(pattv);
     ssearch_destroy(ssp);
+    return 0;
+}
 
+
+char *get_regerror (int errcode, regex_t *compiled) {
+    size_t length = regerror (errcode, compiled, NULL, 0);
+    char *buffer = (char *)malloc (length);
+    (void) regerror (errcode, compiled, buffer, length);
+    return buffer;
+}
+
+int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, regex_t * pxr) {
+
+
+    Fx * mate1 = new Fx();
+    Fx * mate2 = new Fx();
+
+    while(stream.read(&mate1, &mate2) >= 0) {
+        char * data = NULL;
+        if(opts.H_flag) {
+            data = mate1->name;
+
+        } else if(opts.Q_flag){
+            if(!mate1->isFasta()) {
+                data = mate1->qual;
+            }
+        } else {
+            data = mate1->seq;
+        }
+
+        int ret = regexec(pxr, data, 0, NULL, 0);
+        if(ret == REG_NOMATCH){
+            // read one did not have a match check read 2 if it exists
+            if(mate2 != NULL) {
+                if(opts.H_flag) {
+                    data = mate2->name;
+
+                } else if(opts.Q_flag){
+                    if(!mate2->isFasta()) {
+                        data = mate2->seq;
+                    }
+                } else {
+                    data = mate2->seq;
+                }
+                ret = regexec(pxr, data, 0, NULL, 0);
+                if(ret != (REG_NOMATCH | 0)) {
+                    char * errorbuf = get_regerror(ret, pxr);
+                    fprintf(stderr, "%s\n", errorbuf);
+                    free(errorbuf);
+                    delete mate1;
+                    delete mate2;
+                    return 1;
+                } else if(ret == 0) {
+                    (void) on_match(0, NULL, mate1);
+                }
+            }
+        } else if(ret != 0) {
+            char * errorbuf = get_regerror(ret, pxr);
+            fprintf(stderr, "%s\n", errorbuf);
+            free(errorbuf);
+            delete mate1;
+            delete mate2;
+            return 1;
+        } else {
+            (void) on_match(0, NULL, mate1);
+        }
+    }
+
+    delete mate1;
+    delete mate2;
+    return 0;
+}
+
+int main(int argc, char * argv[])
+{
+    //kvec_t(sds) pattern_list;
+    FileManager manager;
+    Options opts;
+
+    int opt_idx = parseOptions(argc, argv, opts);
+    std::string pattern;
+    if(opts.f_flag == NULL) {
+
+        if( opt_idx >= argc) {
+            puts("Please provide a pattern (or pattern file) and at least one input file");
+            usage(usage_msg);
+        } else if (opt_idx >= argc - 1) {
+            puts("Please provide an input file (or two)");
+            usage(usage_msg);
+        }
+        pattern = argv[opt_idx];
+        ++opt_idx;
+        manager.add(pattern);
+        if(opts.r_flag) {
+          std::string rcpattern = pattern;
+            reverseComplement(rcpattern);
+            manager.add(rcpattern);
+        }
+
+
+    } else {
+        if (opt_idx > argc - 1) {
+            puts("Please provide an input file (or two)");
+            usage(usage_msg);
+        }
+        FILE * in = fopen(opts.f_flag, "r");
+        tokenizePatternFile(in, manager);
+    }
+
+    Fxstream stream;
+    if(opt_idx == argc - 2) {
+        // two read files
+        stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
+    } else if (opt_idx == argc - 1) {
+        // one read file
+        stream.open(argv[opt_idx], NULL, opts.I_flag);
+    }
+
+    if(opts.E_flag | opts.G_flag) {
+        // Posix  regex
+        regex_t px_regex;
+        int flags = REG_NOSUB;  //only need to report success or failure
+        if(opts.E_flag) {
+            flags |= REG_EXTENDED;
+        } else {
+            flags |= REG_BASIC;
+        }
+        int ret = regcomp(&px_regex, pattern.c_str(), flags);
+        if(ret) {
+            char * errorbuf = get_regerror(ret, &px_regex);
+            fprintf(stderr, "%s\n", errorbuf);
+            free(errorbuf);
+            stream.close();
+            return 1;
+        }
+        ret = posix_regex_search(manager, stream, opts, &px_regex);
+        regfree(&px_regex);
+        stream.close();
+        return ret;
+
+    } else if(opts.f_flag) {
+        multipattern_search(manager, stream, opts);
+
+    }
+
+    stream.close();
     return 0;
 }
