@@ -376,6 +376,53 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
 }
 #endif
 
+int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, const char * pattern) {
+    Fx * mate1 = new Fx();
+    Fx * mate2 = new Fx();
+
+    while(stream.read(&mate1, &mate2) >= 0) {
+        char * data = NULL;
+        if(opts.H_flag) {
+            data = mate1->name;
+
+        } else if(opts.Q_flag){
+            if(!mate1->isFasta()) {
+                data = mate1->qual;
+            }
+        } else {
+            data = mate1->seq;
+        }
+
+        char * ret = strstr(pattern, data);
+        if(ret == NULL){
+            // read one did not have a match check read 2 if it exists
+            if(mate2 != NULL) {
+                if(opts.H_flag) {
+                    data = mate2->name;
+
+                } else if(opts.Q_flag){
+                    if(!mate2->isFasta()) {
+                        data = mate2->seq;
+                    }
+                } else {
+                    data = mate2->seq;
+                }
+                ret = strstr(pattern, data);
+                if(ret != NULL) {
+                    (void) on_match(0, NULL, mate1);
+                }
+            }
+        } else {
+            (void) on_match(0, NULL, mate1);
+        }
+    }
+
+    delete mate1;
+    delete mate2;
+    return 0;
+
+}
+
 int main(int argc, char * argv[])
 {
     //kvec_t(sds) pattern_list;
@@ -471,6 +518,8 @@ int main(int argc, char * argv[])
     else if(opts.f_flag) {
         multipattern_search(manager, stream, opts);
 
+    } else {
+        simple_string_search(manager, stream, opts, pattern.c_str());
     }
 
     stream.close();
