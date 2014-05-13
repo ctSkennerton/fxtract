@@ -16,7 +16,7 @@
 
 #include "util.h"
 #include "fileManager.h"
-#include "Fx.h"
+#include "fx.h"
 
 extern "C" {
 #include "util/ssearch.h"

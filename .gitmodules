@@ -1,6 +1,3 @@
-[submodule "aho-corasick"]
-	path = aho-corasick
-	url = git@github.com:mischasan/aho-corasick.git
 [submodule "util"]
 	path = util
-	url = git@github.com:mischasan/util.git
+	url = git@github.com:ctSkennerton/util.git
