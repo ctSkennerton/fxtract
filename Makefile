@@ -1,36 +1,24 @@
-CXX=g++
-LIBS=-lz
-CXXFLAGS=-Wall -O2 -DSEQAN_HAS_ZLIB
-EXECUTABLE=fxtract
-SEQAN=third_party/seqan-1.4.1/include
+LIBS := -lz
+EXECUTABLE := fxtract
+util := util
+OBJECTS := main.o fileManager.o fx.o util.o
+PREFIX := /usr/local/bin
 
-ifdef BZIP2
-	override CXXFLAGS := $(CXXFLAGS) -DSEQAN_HAS_BZIP2
-	override LIBS := $(LIBS) -lbz2
+ifdef PCRE
+	LIBS += -lpcre
+	CFLAGS += -DHAVE_PCRE
 endif
 
-ifdef DEBUG
-	override CXXFLAGS := $(CXXFLAGS) -ggdb
-endif
+include $(util)/GNUmakefile
 
-all: main.o fileManager.o WuManber.o $(EXECUTABLE)
+all: $(EXECUTABLE)
 
-clean:
-	rm *.o
+install: $(EXECUTABLE)
+	$(INSTALL) -dc $< $(PREFIX)
 
 test: $(EXECUTABLE)
-	cd ../test/
+	cd test/
 	./run.sh
 
-
-main.o: main.cpp util.h
-	$(CXX) -c $(CXXFLAGS) -I$(SEQAN) $< -o $@
-
-fileManager.o: fileManager.cpp fileManager.h
-	$(CXX) -c $(CXXFLAGS) -I$(SEQAN) $< -o $@
-
-WuManber.o: WuManber.cpp 
-	$(CXX) -c $(CXXFLAGS) $< -o $@
-
-$(EXECUTABLE): main.o fileManager.o WuManber.o
-	$(CXX) $(CXXFLAGS) -I$(SEQAN) -o $(EXECUTABLE) $^ $(LIBS)
+$(EXECUTABLE): $(OBJECTS) $(util)/libmsutil.a
+	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $^ $(LIBS)
