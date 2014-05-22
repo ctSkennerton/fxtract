@@ -35,7 +35,7 @@ struct Options
     bool   Q_flag;
     bool   G_flag;
     bool   E_flag;
-    bool   x_flag;
+    bool   X_flag;
     bool   r_flag;
     bool   I_flag;
 #ifdef HAVE_PCRE
@@ -47,7 +47,7 @@ struct Options
                 Q_flag(false),
                 G_flag(false),
                 E_flag(false),
-                x_flag(false),
+                X_flag(false),
                 r_flag(false),
                 I_flag(false),
 #ifdef HAVE_PCRE
@@ -78,7 +78,7 @@ static const char usage_msg[] =\
 #ifdef HAVE_PCRE
     "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
 #endif
-    "\t-x           pattern exactly matches the whole string (default: literal substring)\n"
+    "\t-X           pattern exactly matches the whole string (default: literal substring)\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
     "\t-f <file>    File containing patterns, one per line\n"
     "\t-h           Print this help\n"
@@ -88,7 +88,7 @@ static const char usage_msg[] =\
 
 int parseOptions(int argc,  char * argv[], Options& opts) {
     int c;
-    while ((c = getopt(argc, argv, "HhIf:zjqVrQGEPx")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhIf:zjqVrQGEPX")) != -1 ) {
         switch (c) {
             case 'f':
                 opts.f_flag = optarg;
@@ -113,8 +113,8 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
             /*case 'e':
                 opts.e_flag = true;
                 break;*/
-            case 'x':
-                opts.x_flag = true;
+            case 'X':
+                opts.X_flag = true;
                 break;
             case 'V':
                 puts(VERSION);
@@ -186,6 +186,51 @@ on_match(int strnum, const char *textp, void const * context)
 	Fx * read = (Fx *) context;
     read->puts(stdout);
     return  1;
+}
+
+int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
+
+
+    Fx * mate1 = new Fx();
+    Fx * mate2 = new Fx();
+
+    while(stream.read(&mate1, &mate2) >= 0) {
+        char * data;
+        if(opts.H_flag) {
+            data = mate1->name;
+
+        } else if(opts.Q_flag){
+            if(!mate1->isFasta()) {
+                data = mate1->qual;
+            }
+        } else {
+            data = mate1->seq;
+        }
+        if(manager.patternMapping.find(data) != manager.patternMapping.end()) {
+           (void) on_match(0, NULL, mate1);
+        } else {
+            // read one did not have a match check read 2 if it exists
+            if(mate2 != NULL) {
+                if(opts.H_flag) {
+                    data = mate2->name;
+
+                } else if(opts.Q_flag){
+                    if(!mate2->isFasta()) {
+                        data = mate2->seq;
+                    }
+                } else {
+                    data = mate2->seq;
+                }
+            }
+            if(manager.patternMapping.find(data) != manager.patternMapping.end()) {
+                (void)on_match(0, NULL, mate2);
+            }
+        }
+    }
+
+    delete mate1;
+    delete mate2;
+    return 0;
 }
 
 int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
@@ -519,6 +564,9 @@ int main(int argc, char * argv[])
 
     }
 #endif
+    else if(opts.X_flag) {
+        hash_search(manager, stream, opts);
+    }
     else if(opts.f_flag) {
         multipattern_search(manager, stream, opts);
 
