@@ -14,6 +14,8 @@
 #include <pcre.h>
 #endif
 
+#include <fstream>
+#include <string>
 
 #include "util.h"
 #include "fileManager.h"
@@ -157,14 +159,13 @@ void split( std::vector<std::string> & theStringVector,  /* Altered/returned val
     }
 }
 
-void tokenizePatternFile(FILE * in, FileManager&  fmanager) {
+void tokenizePatternFile(std::ifstream& in, FileManager&  fmanager) {
     // tokenize a line from the pattern file.  The first part will be the pattern and the second
     // part is the file to write to.
-    char * lineptr = NULL;
-    size_t n;
 
+    std::string lineptr;
 
-    while(getline(&lineptr, &n, in) != -1) {
+    while(in >> lineptr) {
         std::vector<std::string> fields;
         split(fields, lineptr, "\t");
         switch(fields.size()) {
@@ -178,7 +179,6 @@ void tokenizePatternFile(FILE * in, FileManager&  fmanager) {
                 break;
         }
     }
-    free(lineptr);
 }
 static int
 on_match(int strnum, const char *textp, void const * context)
@@ -504,8 +504,13 @@ int main(int argc, char * argv[])
             puts("Please provide an input file (or two)");
             usage(usage_msg);
         }
-        FILE * in = fopen(opts.f_flag, "r");
-        tokenizePatternFile(in, manager);
+        std::ifstream in (opts.f_flag);
+        if(!in.good()) {
+            fprintf(stderr, "problem opening pattern file");
+            exit(1);
+        } else {
+            tokenizePatternFile(in, manager);
+        }
     }
 
     Fxstream stream;
