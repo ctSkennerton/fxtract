@@ -14,6 +14,7 @@
 #include <pcre.h>
 #endif
 
+
 #include "util.h"
 #include "fileManager.h"
 #include "fx.h"
@@ -25,6 +26,9 @@ extern "C" {
 }
 #define VERSION "1.0-alpha"
 
+#ifndef REG_BASIC
+#define REG_BASIC 0
+#endif
 struct Options
 {
     bool   H_flag;
@@ -393,7 +397,7 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
             data = mate1->seq;
         }
 
-        char * ret = strstr(pattern, data);
+        const char * ret = strstr(pattern, data);
         if(ret == NULL){
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
