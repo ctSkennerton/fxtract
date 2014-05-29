@@ -183,7 +183,7 @@ FILE * FileManager::find (std::string key) {
     FileWrapper * fw;
     std::map<std::string, int>::iterator iter = patternMapping.find(key);
     if(iter == patternMapping.end()) {
-        fprintf(stderr, "[ERROR]: The pattern \"%s\" is not found in the mapping\n", key.c_str());
+        //fprintf(stderr, "[ERROR]: The pattern \"%s\" is not found in the mapping\n", key.c_str());
         return NULL;
     }
     fw = files[iter->second];

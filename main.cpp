@@ -61,7 +61,9 @@ struct Options
 
 
 void printSingle(Fx * mate1, FILE * out ) {
-    mate1->puts(out);
+    if(mate1 != NULL) {
+        mate1->puts(out);
+    }
 }
 
 void printPair(Fx* mate1, Fx* mate2, FILE * out) {
@@ -183,8 +185,8 @@ void tokenizePatternFile(std::ifstream& in, FileManager&  fmanager) {
 static int
 on_match(int strnum, const char *textp, void const * context)
 {
-	Fx * read = (Fx *) context;
-    read->puts(stdout);
+	//Fx * read = (Fx *) context;
+    //read->puts(stdout);
     return  1;
 }
 
@@ -193,7 +195,7 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
 
     Fx * mate1 = new Fx();
     Fx * mate2 = new Fx();
-
+    std::map<std::string, int>::iterator iter;
     while(stream.read(&mate1, &mate2) >= 0) {
         char * data;
         if(opts.H_flag) {
@@ -206,8 +208,10 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
         } else {
             data = mate1->seq;
         }
-        if(manager.patternMapping.find(data) != manager.patternMapping.end()) {
-           (void) on_match(0, NULL, mate1);
+        FILE * out = manager.find(data);
+        if(out != NULL) {
+            printPair(mate1, mate2, out);
+
         } else {
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
@@ -222,8 +226,9 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
                     data = mate2->seq;
                 }
             }
-            if(manager.patternMapping.find(data) != manager.patternMapping.end()) {
-                (void)on_match(0, NULL, mate2);
+            FILE * out = manager.find(data);
+            if(out != NULL) {
+                printPair(mate1, mate2, out);
             }
         }
     }
@@ -252,6 +257,11 @@ int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
 
     SSEARCH *ssp = ssearch_create(pattv, npatts);
 
+    if(ssp == NULL) {
+        fprintf(stderr, "problem initalizing multi-search");
+        return 1;
+    }
+
     while(stream.read(&mate1, &mate2) >= 0) {
         MEMREF data;
         if(opts.H_flag) {
@@ -267,8 +277,13 @@ int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
             data.ptr = mate1->seq;
             data.len = (size_t)mate1->len;
         }
-        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, (void *)mate1);
-        if(ret == 0){
+        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
+        if(ret) {
+            FILE * out = manager.find(data.ptr);
+            if(out != NULL) {
+                printPair(mate1, mate2, out);
+            }
+        } else {
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
@@ -284,7 +299,13 @@ int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
                     data.ptr = mate2->seq;
                     data.len = (size_t)mate2->len;
                 }
-                ssearch_scan(ssp, data, (SSEARCH_CB)on_match, (void *)mate2);
+                ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
+                if(ret) {
+                    FILE * out = manager.find(data.ptr);
+                    if(out != NULL) {
+                        printPair(mate1, mate2, out);
+                    }
+                }
             }
         }
     }
@@ -347,7 +368,8 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
                     delete mate2;
                     return 1;
                 } else if(ret == 0) {
-                    (void) on_match(0, NULL, mate1);
+                    printPair(mate1, mate2, stdout);
+
                 }
             }
         } else if(ret != 0) {
@@ -358,7 +380,8 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
             delete mate2;
             return 1;
         } else {
-            (void) on_match(0, NULL, mate1);
+            printPair(mate1, mate2, stdout);
+
         }
     }
 
@@ -409,13 +432,15 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
                 if(ret != (PCRE_ERROR_NOMATCH | 0)) {
                     return 1;
                 } else if(ret == 0) {
-                    (void) on_match(0, NULL, mate1);
+                    printPair(mate1, mate2, stdout);
+
                 }
             }
         } else if(ret != 0) {
             return 1;
         } else {
-            (void) on_match(0, NULL, mate1);
+            printPair(mate1, mate2, stdout);
+
         }
     }
 
@@ -442,7 +467,7 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
             data = mate1->seq;
         }
 
-        const char * ret = strstr(pattern, data);
+        const char * ret = strstr(data, pattern);
         if(ret == NULL){
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
@@ -456,13 +481,15 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
                 } else {
                     data = mate2->seq;
                 }
-                ret = strstr(pattern, data);
+                ret = strstr(data, pattern);
                 if(ret != NULL) {
-                    (void) on_match(0, NULL, mate1);
+                    printPair(mate1, mate2, stdout);
+
                 }
             }
         } else {
-            (void) on_match(0, NULL, mate1);
+            printPair(mate1, mate2, stdout);
+
         }
     }
 
@@ -506,7 +533,7 @@ int main(int argc, char * argv[])
         }
         std::ifstream in (opts.f_flag);
         if(!in.good()) {
-            fprintf(stderr, "problem opening pattern file");
+            fprintf(stderr, "problem opening pattern file\n");
             exit(1);
         } else {
             tokenizePatternFile(in, manager);

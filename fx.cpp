@@ -48,7 +48,7 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
 int Fxstream::close() {
     kseq_destroy(this->seq1);
     ::close(this->fd1);
-    if(this->seq2) {
+    if(this->seq2 != NULL) {
         kseq_destroy(this->seq2);
         ::close(this->fd2);
     }
