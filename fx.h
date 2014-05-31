@@ -1,35 +1,35 @@
 #ifndef _FX_H_
 #define _FX_H_ 1
-#include <cstring>
-#include "kseq.h"
+#include <string>
+#include <fstream>
 
 struct Fx {
-  char * name;
-  char * seq;
-  char * qual;
-  int len;
+    std::string name;
+    std::string comment;
+    std::string seq;
+    std::string qual;
+    int         len;
 
-  Fx(){
-    name = NULL;
-    seq = NULL;
-    qual = NULL;
-    len = 0;
-  };
-  ~Fx() {
-    free(name);
-    free(seq);
-    free(qual);
-  }
-  size_t size() {
-    return len;
-  }
-  size_t length() {
-    return size();
-  }
-  bool isFasta() {
-    return qual == NULL;
-  }
-  int puts(FILE * out);
+    Fx(){
+        len = 0;
+    };
+    ~Fx() {
+    }
+    size_t size() {
+        return len;
+    }
+    size_t length() {
+        return size();
+    }
+    bool isFasta() {
+        return qual.empty();
+    }
+    void clear() {
+        name.clear();
+        comment.clear();
+        seq.clear();
+        qual.clear();
+    }
 };
 
 /*
@@ -44,19 +44,26 @@ struct Fx {
  *              fxtream_close
  */
 
-KSEQ_INIT(int, read);
-
 struct Fxstream {
-    kseq_t * seq1;
-    kseq_t * seq2;
-    int      fd1;
-    int      fd2;
-    bool     interleaved;
+
+    enum read_type {
+        FASTA,
+        FASTQ
+    };
+    std::ifstream f1;
+    std::ifstream f2;
+    read_type     t1;
+    read_type     t2;
+    bool          interleaved;
 
     Fxstream(){}
     int open(const char * file1, const char * file2, bool interleaved);
     int close();
     int read (Fx ** read1, Fx ** read2);
+
+    private:
+    int readFastaRecord(Fx ** read, std::ifstream& input);
+    int readFastqRecord(Fx ** read, std::ifstream& input);
 
 };
 

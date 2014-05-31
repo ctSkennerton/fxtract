@@ -7,121 +7,155 @@
 #include "fx.h"
 
 
-int Fx::puts(FILE * out) {
-    if(qual == NULL) {
-        return fprintf(out, ">%s\n%s\n", name, seq);
-    } else {
-        return fprintf(out, "@%s\n%s\n+\n%s\n", name, seq, qual);
-    }
-}
-
 int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
-    int fd1 = -1;
-    int fd2 = -1;
-    fd1 = ::open(file1, O_RDONLY);
-    if(fd1 == -1) {
-        perror("failed to open file for mate1");
+    f1.open(file1);
+    if(!f1.good()) {
+        fprintf(stderr, "failed to open file for mate1\n");
         return 1;
-    }
-    if(file2 != NULL && interleaved) {
-        fprintf(stderr, "When the interleaved flag is set file2 must equal NULL");
-        return 1;
-    } else if (file2 != NULL && !interleaved) {
-        fd2 = ::open(file2, O_RDONLY);
-        if(fd2 == -1) {
-            perror("failed to open file for mate2");
+    } else {
+        char c = f1.peek();
+        if(c == '>') {
+            t1 = FASTA;
+        } else if( c == '@') {
+            t1 = FASTQ;
+        } else {
+            fprintf(stderr, "The file does not look like either fasta or fastq\n");
             return 1;
         }
     }
-    this->interleaved = interleaved;
-    this->fd1 = fd1;
-    this->fd2 = fd2;
-    this->seq1 = kseq_init(fd1);
-    if(-1 != fd2) {
-        this->seq2 = kseq_init(fd2);
-    } else {
-        this->seq2 = NULL;
+    
+    if(file2 != NULL && interleaved) {
+        fprintf(stderr, "When the interleaved flag is set file2 must equal NULL\n");
+        return 1;
+    } else if (file2 != NULL && !interleaved) {
+        f2.open(file2);
+        if(!f2.good()) {
+            fprintf(stderr, "failed to open file for mate2\n");
+            return 1;
+        } else {
+            char c = f2.peek();
+            if(c == '>') {
+                t2 = FASTA;
+            } else if( c == '@') {
+                t2 = FASTQ;
+            } else {
+                fprintf(stderr, "The file does not look like either fasta or fastq\n");
+                return 1;
+            }
+
+            if( t1 != t2) {
+                fprintf(stderr, "both files must be either fasta or fastq\n");
+                return 1;
+            }
+        }
     }
+    this->interleaved = interleaved;
     return 0;
 }
 
 int Fxstream::close() {
-    kseq_destroy(this->seq1);
-    ::close(this->fd1);
-    if(this->seq2 != NULL) {
-        kseq_destroy(this->seq2);
-        ::close(this->fd2);
+    f1.close();
+    if(f2.is_open()) {
+        f2.close();
     }
     return 0;
 }
 
+int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
+    // assume that we enter this funcion always pointing at the next
+    // start of a fasta record. The first line will therefore be the 
+    // header line
+    if(!f1.good()) {
+        return 1;
+    }
+
+    input.get();
+    input >> (*read)->name;  // first word from the current line
+
+    std::getline(input, (*read)->comment);
+    
+    // peek the begining of the next line. it should not be the '>' char
+    // if this is a valid fasta file
+    if(input.peek() == '>') {
+        fprintf(stderr, "malformed fasta record\n");
+        return 1;
+    }
+    do {
+        std::string tmp;
+        std::getline(input, tmp);
+        (*read)->seq += tmp;
+    } while (input.good() && input.peek() != '>');
+
+    (*read)->len = static_cast<int>((*read)->seq.size());
+
+    return 0;
+}
+
+int Fxstream::readFastqRecord(Fx ** read, std::ifstream& input) {
+    // assume that we enter this funcion always pointing at the next
+    // start of a fastq record. The first line will therefore be the 
+    // header line
+    if(!f1.good()) {
+        return 1;
+    }
+
+    // waste the '@' char
+    input.get();
+    input >> (*read)->name;  // first word from the current line
+
+    std::getline(input, (*read)->comment);
+    
+    // seq line
+    std::getline(input, (*read)->seq);
+    (*read)->len = static_cast<int>((*read)->seq.size());
+    
+    // waste line
+    std::string tmp;
+    std::getline(input, tmp);
+
+    // quality line
+    std::getline(input, (*read)->qual);
+
+    return 0;
+
+}
 //TODO: BSD grep has support for zip, bzip2 and xz files out of the box
 //http://svnweb.freebsd.org/base/head/usr.bin/grep/file.c?view=markup
 int Fxstream::read( Fx ** read1, Fx ** read2) {
-    int len1, len2;
-    len1 = kseq_read(this->seq1);
-    if(len1 < 0) {
-        (*read1) = NULL;
-        (*read2) = NULL;
-        return len1;
-    }
-    (*read1)->len = len1;
 
-    (*read1)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
-    (*read1)->name = strncpy((*read1)->name, this->seq1->name.s, this->seq1->name.l);
 
-    (*read1)->seq = (char *) malloc(sizeof(char *) * this->seq1->seq.l);
-    (*read1)->seq = strncpy((*read1)->seq, this->seq1->seq.s, this->seq1->seq.l);
-
-    if(this->seq1->qual.s) {
-        (*read1)->qual = (char *) malloc(sizeof(char *) * this->seq1->qual.l);
-        (*read1)->qual = strncpy((*read1)->qual, this->seq1->qual.s, this->seq1->qual.l);
-    }
-
-    if(this->interleaved) {
-        len2 = kseq_read(this->seq1);
-        if(len2 < 0) {
-            (*read1) = NULL;
-            (*read2) = NULL;
-            return len2;
+    if(t1 == FASTA) {
+        if(readFastaRecord(read1, f1)) {
+            return 1;
         }
-        (*read2)->len = len2;
-
-        (*read2)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
-        (*read2)->name = strncpy((*read2)->name, this->seq1->name.s, this->seq1->name.l);
-
-        (*read2)->seq = (char *) malloc(sizeof(char *) * this->seq1->seq.l);
-        (*read2)->seq = strncpy((*read2)->seq, this->seq1->seq.s, this->seq1->seq.l);
-
-        if(this->seq1->qual.s) {
-          (*read2)->qual = (char *) malloc(sizeof(char *) * this->seq1->qual.l);
-          (*read2)->qual = strncpy((*read2)->qual, this->seq1->qual.s, this->seq1->qual.l);
+        if(this->interleaved) {
+            if(readFastaRecord(read2, f1)) {
+                return 1;
+            }
+        } else if(f2.is_open()) {
+            if(readFastaRecord(read2, f2)) {
+                return 1;
+            }
         }
-
-    } else if(this->seq2 != NULL) {
-        len2 = kseq_read(this->seq2);
-        if(len2 < 0) {
-            (*read1) = NULL;
-            (*read2) = NULL;
-            return len2;
+    } else if( t1 == FASTQ) {
+        if(readFastqRecord(read1, f1)) {
+            return 1;
         }
-        (*read2)->len = len2;
-
-        (*read2)->name = (char *) malloc(sizeof(char *) * this->seq1->name.l);
-        (*read2)->name = strncpy((*read2)->name, this->seq1->name.s, this->seq1->name.l);
-
-        (*read2)->seq = (char *) malloc(sizeof(char *) * this->seq1->seq.l);
-        (*read2)->seq = strncpy((*read2)->seq, this->seq1->seq.s, this->seq1->seq.l);
-
-        if(this->seq1->qual.s) {
-          (*read2)->qual = (char *) malloc(sizeof(char *) * this->seq1->qual.l);
-          (*read2)->qual = strncpy((*read2)->qual, this->seq1->qual.s, this->seq1->qual.l);
+        if(this->interleaved) {
+            if(readFastqRecord(read2, f1)) {
+                return 1;
+            }
+        } else if(f2.is_open()) {
+            if(readFastqRecord(read2, f2)) {
+                return 1;
+            }
         }
     } else {
-        (*read2) = NULL;
-
+        // this should never happen as this kind of error should be caught previously
+        fprintf(stderr, "Unknown file parsing error occurred\n");
+        return 1;
     }
-    return len1;
+    return 0;
 }
 
 
@@ -131,9 +165,10 @@ int main(int argc, char * argv[]) {
     Fxstream stream;
     stream.open(argv[1], NULL, false);
     Fx * read = new Fx();
-    while(stream.read(read, NULL) >= 0) {
-        printf(">%s\n%s\n", read->name, read->seq);
-        read->puts(stdout);
+    while(stream.read(&read, NULL) == 0) {
+        printf(">%s\n%s\n", read->name.c_str(), read->seq.c_str());
+        //read->puts(stdout);
+        read->clear();
     }
     delete read;
     stream.close();

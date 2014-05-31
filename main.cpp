@@ -196,7 +196,7 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
     Fx * mate1 = new Fx();
     Fx * mate2 = new Fx();
     std::map<std::string, int>::iterator iter;
-    while(stream.read(&mate1, &mate2) >= 0) {
+    while(stream.read(&mate1, &mate2) == 0) {
         char * data;
         if(opts.H_flag) {
             data = mate1->name;
@@ -262,7 +262,7 @@ int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
         return 1;
     }
 
-    while(stream.read(&mate1, &mate2) >= 0) {
+    while(stream.read(&mate1, &mate2) == 0) {
         MEMREF data;
         if(opts.H_flag) {
             data.ptr = mate1->name;
@@ -332,7 +332,7 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
     Fx * mate1 = new Fx();
     Fx * mate2 = new Fx();
 
-    while(stream.read(&mate1, &mate2) >= 0) {
+    while(stream.read(&mate1, &mate2) == 0) {
         char * data = NULL;
         if(opts.H_flag) {
             data = mate1->name;
@@ -395,7 +395,7 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
     Fx * mate2 = new Fx();
     int ovector[30];
 
-    while(stream.read(&mate1, &mate2) >= 0) {
+    while(stream.read(&mate1, &mate2) == 0) {
         MEMREF data;
         if(opts.H_flag) {
             data.ptr = mate1->name;
@@ -454,7 +454,7 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
     Fx * mate1 = new Fx();
     Fx * mate2 = new Fx();
 
-    while(stream.read(&mate1, &mate2) >= 0) {
+    while(stream.read(&mate1, &mate2) == 0) {
         char * data = NULL;
         if(opts.H_flag) {
             data = mate1->name;
