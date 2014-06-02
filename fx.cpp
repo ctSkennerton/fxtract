@@ -6,6 +6,13 @@
 #include <cstdio>
 #include "fx.h"
 
+void Fx::puts(FILE * out) {
+    if(isFasta()) {
+        fprintf(out, ">%s %s\n%s\n", name.c_str(), comment.c_str(), seq.c_str());
+    } else {
+        fprintf(out, "@%s %s\n%s\n+\n%s\n", name.c_str(), comment.c_str(), seq.c_str(), qual.c_str());
+    }
+}
 
 int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
     f1.open(file1);
@@ -23,7 +30,7 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
             return 1;
         }
     }
-    
+
     if(file2 != NULL && interleaved) {
         fprintf(stderr, "When the interleaved flag is set file2 must equal NULL\n");
         return 1;
@@ -63,7 +70,7 @@ int Fxstream::close() {
 
 int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
-    // start of a fasta record. The first line will therefore be the 
+    // start of a fasta record. The first line will therefore be the
     // header line
     if(!f1.good()) {
         return 1;
@@ -73,7 +80,7 @@ int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
     input >> (*read)->name;  // first word from the current line
 
     std::getline(input, (*read)->comment);
-    
+
     // peek the begining of the next line. it should not be the '>' char
     // if this is a valid fasta file
     if(input.peek() == '>') {
@@ -93,7 +100,7 @@ int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
 
 int Fxstream::readFastqRecord(Fx ** read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
-    // start of a fastq record. The first line will therefore be the 
+    // start of a fastq record. The first line will therefore be the
     // header line
     if(!f1.good()) {
         return 1;
@@ -104,11 +111,11 @@ int Fxstream::readFastqRecord(Fx ** read, std::ifstream& input) {
     input >> (*read)->name;  // first word from the current line
 
     std::getline(input, (*read)->comment);
-    
+
     // seq line
     std::getline(input, (*read)->seq);
     (*read)->len = static_cast<int>((*read)->seq.size());
-    
+
     // waste line
     std::string tmp;
     std::getline(input, tmp);
@@ -166,7 +173,7 @@ int main(int argc, char * argv[]) {
     stream.open(argv[1], NULL, false);
     Fx * read = new Fx();
     while(stream.read(&read, NULL) == 0) {
-        printf(">%s\n%s\n", read->name.c_str(), read->seq.c_str());
+        printf(">%s %s\n%s\n", read->name.c_str(), read->comment.c_str(), read->seq.c_str());
         //read->puts(stdout);
         read->clear();
     }

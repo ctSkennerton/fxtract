@@ -30,6 +30,7 @@ struct Fx {
         seq.clear();
         qual.clear();
     }
+    void puts(FILE * out);
 };
 
 /*

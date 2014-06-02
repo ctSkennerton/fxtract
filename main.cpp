@@ -60,13 +60,14 @@ struct Options
 };
 
 
-void printSingle(Fx * mate1, FILE * out ) {
-    if(mate1 != NULL) {
-        mate1->puts(out);
+void printSingle(Fx ** mate, FILE * out ) {
+    if(mate != NULL) {
+        fprintf(out, ">%s %s\n%s\n", (*mate)->name.c_str(), (*mate)->comment.c_str(), (*mate)->seq.c_str());
+        //mate->puts(out);
     }
 }
 
-void printPair(Fx* mate1, Fx* mate2, FILE * out) {
+void printPair(Fx ** mate1, Fx ** mate2, FILE * out) {
     // match in the first read print out pair
     printSingle(mate1, out);
     printSingle(mate2, out);
@@ -197,38 +198,38 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
     Fx * mate2 = new Fx();
     std::map<std::string, int>::iterator iter;
     while(stream.read(&mate1, &mate2) == 0) {
-        char * data;
+        std::string * data;
         if(opts.H_flag) {
-            data = mate1->name;
+            data = &mate1->name;
 
         } else if(opts.Q_flag){
             if(!mate1->isFasta()) {
-                data = mate1->qual;
+                data = &mate1->qual;
             }
         } else {
-            data = mate1->seq;
+            data = &mate1->seq;
         }
-        FILE * out = manager.find(data);
+        FILE * out = manager.find(*data);
         if(out != NULL) {
-            printPair(mate1, mate2, out);
+            printPair(&mate1, &mate2, out);
 
         } else {
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
-                    data = mate2->name;
+                    data = &mate2->name;
 
                 } else if(opts.Q_flag){
                     if(!mate2->isFasta()) {
-                        data = mate2->seq;
+                        data = &mate2->seq;
                     }
                 } else {
-                    data = mate2->seq;
+                    data = &mate2->seq;
                 }
             }
-            FILE * out = manager.find(data);
+            FILE * out = manager.find(*data);
             if(out != NULL) {
-                printPair(mate1, mate2, out);
+                printPair(&mate1, &mate2, out);
             }
         }
     }
@@ -265,45 +266,45 @@ int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
     while(stream.read(&mate1, &mate2) == 0) {
         MEMREF data;
         if(opts.H_flag) {
-            data.ptr = mate1->name;
-            data.len = strlen(mate1->name);
+            data.ptr = mate1->name.c_str();
+            data.len = mate1->name.size();
 
         } else if(opts.Q_flag){
             if(!mate1->isFasta()) {
-                data.ptr = mate1->qual;
+                data.ptr = mate1->qual.c_str();
                 data.len = (size_t)mate1->len;
             }
         } else {
-            data.ptr = mate1->seq;
+            data.ptr = mate1->seq.c_str();
             data.len = (size_t)mate1->len;
         }
         int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
         if(ret) {
             FILE * out = manager.find(data.ptr);
             if(out != NULL) {
-                printPair(mate1, mate2, out);
+                printPair(&mate1, &mate2, out);
             }
         } else {
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
-                    data.ptr = mate2->name;
-                    data.len = strlen(mate2->name);
+                    data.ptr = mate2->name.c_str();
+                    data.len = mate2->name.size();
 
                 } else if(opts.Q_flag){
                     if(!mate2->isFasta()) {
-                        data.ptr = mate2->seq;
+                        data.ptr = mate2->seq.c_str();
                         data.len = (size_t)mate2->len;
                     }
                 } else {
-                    data.ptr = mate2->seq;
+                    data.ptr = mate2->seq.c_str();
                     data.len = (size_t)mate2->len;
                 }
                 ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
                 if(ret) {
                     FILE * out = manager.find(data.ptr);
                     if(out != NULL) {
-                        printPair(mate1, mate2, out);
+                        printPair(&mate1, &mate2, out);
                     }
                 }
             }
@@ -333,33 +334,33 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
     Fx * mate2 = new Fx();
 
     while(stream.read(&mate1, &mate2) == 0) {
-        char * data = NULL;
+        std::string * data;
         if(opts.H_flag) {
-            data = mate1->name;
+            data = &mate1->name;
 
         } else if(opts.Q_flag){
             if(!mate1->isFasta()) {
-                data = mate1->qual;
+                data = &mate1->qual;
             }
         } else {
-            data = mate1->seq;
+            data = &mate1->seq;
         }
 
-        int ret = regexec(pxr, data, 0, NULL, 0);
+        int ret = regexec(pxr, data->c_str(), 0, NULL, 0);
         if(ret == REG_NOMATCH){
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
-                    data = mate2->name;
+                    data = &mate2->name;
 
                 } else if(opts.Q_flag){
                     if(!mate2->isFasta()) {
-                        data = mate2->seq;
+                        data = &mate2->seq;
                     }
                 } else {
-                    data = mate2->seq;
+                    data = &mate2->seq;
                 }
-                ret = regexec(pxr, data, 0, NULL, 0);
+                ret = regexec(pxr, data->c_str(), 0, NULL, 0);
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
                     fprintf(stderr, "%s\n", errorbuf);
@@ -368,7 +369,7 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
                     delete mate2;
                     return 1;
                 } else if(ret == 0) {
-                    printPair(mate1, mate2, stdout);
+                    printPair(&mate1, &mate2, stdout);
 
                 }
             }
@@ -380,7 +381,7 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
             delete mate2;
             return 1;
         } else {
-            printPair(mate1, mate2, stdout);
+            printPair(&mate1, &mate2, stdout);
 
         }
     }
@@ -398,16 +399,16 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
     while(stream.read(&mate1, &mate2) == 0) {
         MEMREF data;
         if(opts.H_flag) {
-            data.ptr = mate1->name;
-            data.len = strlen(mate1->name);
+            data.ptr = mate1->name.c_str();
+            data.len = mate1->name.size();
 
         } else if(opts.Q_flag){
             if(!mate1->isFasta()) {
-                data.ptr = mate1->qual;
+                data.ptr = mate1->qual.c_str();
                 data.len = (size_t)mate1->len;
             }
         } else {
-            data.ptr = mate1->seq;
+            data.ptr = mate1->seq.c_str();
             data.len = (size_t)mate1->len;
         }
 
@@ -416,30 +417,30 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
-                    data.ptr = mate2->name;
-                    data.len = strlen(mate2->name);
+                    data.ptr = mate2->name.c_str();
+                    data.len = mate2->name.size();
 
                 } else if(opts.Q_flag){
                     if(!mate2->isFasta()) {
-                        data.ptr = mate2->seq;
+                        data.ptr = mate2->seq.c_str();
                         data.len = (size_t)mate2->len;
                     }
                 } else {
-                    data.ptr = mate2->seq;
+                    data.ptr = mate2->seq.c_str();
                     data.len = (size_t)mate2->len;
                 }
                 ret = pcre_exec(pxr, NULL, data.ptr, data.len, 0, 0, ovector, 30);
                 if(ret != (PCRE_ERROR_NOMATCH | 0)) {
                     return 1;
                 } else if(ret == 0) {
-                    printPair(mate1, mate2, stdout);
+                    printPair(&mate1, &mate2, stdout);
 
                 }
             }
         } else if(ret != 0) {
             return 1;
         } else {
-            printPair(mate1, mate2, stdout);
+            printPair(&mate1, &mate2, stdout);
 
         }
     }
@@ -455,16 +456,16 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
     Fx * mate2 = new Fx();
 
     while(stream.read(&mate1, &mate2) == 0) {
-        char * data = NULL;
+        /*const char * data = NULL;
         if(opts.H_flag) {
-            data = mate1->name;
+            data = mate1->name.c_str();
 
         } else if(opts.Q_flag){
             if(!mate1->isFasta()) {
-                data = mate1->qual;
+                data = mate1->qual.c_str();
             }
         } else {
-            data = mate1->seq;
+            data = mate1->seq.c_str();
         }
 
         const char * ret = strstr(data, pattern);
@@ -472,24 +473,30 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
             // read one did not have a match check read 2 if it exists
             if(mate2 != NULL) {
                 if(opts.H_flag) {
-                    data = mate2->name;
+                    data = mate2->name.c_str();
 
                 } else if(opts.Q_flag){
                     if(!mate2->isFasta()) {
-                        data = mate2->seq;
+                        data = mate2->seq.c_str();
                     }
                 } else {
-                    data = mate2->seq;
+                    data = mate2->seq.c_str();
                 }
                 ret = strstr(data, pattern);
                 if(ret != NULL) {
-                    printPair(mate1, mate2, stdout);
+                    printPair(&mate1, &mate2, stdout);
 
                 }
             }
         } else {
-            printPair(mate1, mate2, stdout);
+            printPair(&mate1, &mate2, stdout);
 
+        }*/
+        //fprintf(stdout, ">%s %s\n%s\n", mate1->name.c_str(), mate1->comment.c_str(), mate1->seq.c_str());
+        printPair(&mate1, &mate2, stdout);
+        mate1->clear();
+        if(mate2 != NULL) {
+            mate2->clear();
         }
     }
 
