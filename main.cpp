@@ -338,7 +338,7 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
             if(!mate1.isFasta()) {
                 data = mate1.qual;
             }
-        } 
+        }
 
         int ret = regexec(pxr, data.c_str(), 0, NULL, 0);
         if(ret == REG_NOMATCH){
@@ -399,7 +399,7 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
         }
 
         int ret = pcre_exec(pxr, NULL, data.c_str(), data.size(), 0, 0, ovector, 30);
-        if(ret == PCRE_ERROR_NOMATCH){
+        if(ret != 1){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
                 if(opts.H_flag) {
@@ -413,17 +413,12 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
                     data = mate2.seq;
                 }
                 ret = pcre_exec(pxr, NULL, data.c_str(), data.size(), 0, 0, ovector, 30);
-                if(ret != (PCRE_ERROR_NOMATCH | 0)) {
-                    return 1;
-                } else if(ret == 0) {
+                if(ret == 1) {
                     std::cout << mate1 << mate2;
                 }
             }
-        } else if(ret != 0) {
-            return 1;
         } else {
             std::cout << mate1 << mate2;
-
         }
         mate1.clear();
         mate2.clear();
@@ -469,9 +464,7 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
             }
         } else {
             std::cout << mate1 << mate2;
-
         }
-        std::cout << mate1 << mate2;
         mate1.clear();
         mate2.clear();
     }
