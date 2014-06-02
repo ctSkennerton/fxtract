@@ -6,14 +6,6 @@
 #include <cstdio>
 #include "fx.h"
 
-void Fx::puts(FILE * out) {
-    if(isFasta()) {
-        fprintf(out, ">%s %s\n%s\n", name.c_str(), comment.c_str(), seq.c_str());
-    } else {
-        fprintf(out, "@%s %s\n%s\n+\n%s\n", name.c_str(), comment.c_str(), seq.c_str(), qual.c_str());
-    }
-}
-
 int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
     f1.open(file1);
     if(!f1.good()) {
@@ -68,7 +60,7 @@ int Fxstream::close() {
     return 0;
 }
 
-int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
+int Fxstream::readFastaRecord(Fx& read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fasta record. The first line will therefore be the
     // header line
@@ -77,9 +69,9 @@ int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
     }
 
     input.get();
-    input >> (*read)->name;  // first word from the current line
+    input >> read.name;  // first word from the current line
 
-    std::getline(input, (*read)->comment);
+    std::getline(input, read.comment);
 
     // peek the begining of the next line. it should not be the '>' char
     // if this is a valid fasta file
@@ -90,15 +82,15 @@ int Fxstream::readFastaRecord(Fx ** read, std::ifstream& input) {
     do {
         std::string tmp;
         std::getline(input, tmp);
-        (*read)->seq += tmp;
+        read.seq += tmp;
     } while (input.good() && input.peek() != '>');
 
-    (*read)->len = static_cast<int>((*read)->seq.size());
+    read.len = static_cast<int>(read.seq.size());
 
     return 0;
 }
 
-int Fxstream::readFastqRecord(Fx ** read, std::ifstream& input) {
+int Fxstream::readFastqRecord(Fx& read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fastq record. The first line will therefore be the
     // header line
@@ -108,27 +100,27 @@ int Fxstream::readFastqRecord(Fx ** read, std::ifstream& input) {
 
     // waste the '@' char
     input.get();
-    input >> (*read)->name;  // first word from the current line
+    input >> read.name;  // first word from the current line
 
-    std::getline(input, (*read)->comment);
+    std::getline(input, read.comment);
 
     // seq line
-    std::getline(input, (*read)->seq);
-    (*read)->len = static_cast<int>((*read)->seq.size());
+    std::getline(input, read.seq);
+    read.len = static_cast<int>(read.seq.size());
 
     // waste line
     std::string tmp;
     std::getline(input, tmp);
 
     // quality line
-    std::getline(input, (*read)->qual);
+    std::getline(input, read.qual);
 
     return 0;
 
 }
 //TODO: BSD grep has support for zip, bzip2 and xz files out of the box
 //http://svnweb.freebsd.org/base/head/usr.bin/grep/file.c?view=markup
-int Fxstream::read( Fx ** read1, Fx ** read2) {
+int Fxstream::read( Fx& read1, Fx& read2) {
 
 
     if(t1 == FASTA) {
@@ -171,13 +163,12 @@ int Fxstream::read( Fx ** read1, Fx ** read2) {
 int main(int argc, char * argv[]) {
     Fxstream stream;
     stream.open(argv[1], NULL, false);
-    Fx * read = new Fx();
-    while(stream.read(&read, NULL) == 0) {
-        printf(">%s %s\n%s\n", read->name.c_str(), read->comment.c_str(), read->seq.c_str());
-        //read->puts(stdout);
-        read->clear();
+    Fx read1, read2;
+    while(stream.read(read1, read2) == 0) {
+        std::cout << read1 <<read2;
+        read1.clear();
+        read2.clear();
     }
-    delete read;
     stream.close();
     return 0;
 }

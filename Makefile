@@ -4,7 +4,7 @@ util := util
 OBJECTS := main.o fileManager.o fx.o util.o
 PREFIX := /usr/local/bin
 
-ifdef PCRE
+ifndef NO_PCRE
 	LIBS += -lpcre
 	CFLAGS += -DHAVE_PCRE
 endif

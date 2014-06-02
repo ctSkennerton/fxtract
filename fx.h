@@ -1,6 +1,7 @@
 #ifndef _FX_H_
 #define _FX_H_ 1
 #include <string>
+#include <iostream>
 #include <fstream>
 
 struct Fx {
@@ -14,6 +15,9 @@ struct Fx {
         len = 0;
     };
     ~Fx() {
+    }
+    bool empty() {
+        return name.empty() && comment.empty() && seq.empty() && qual.empty();
     }
     size_t size() {
         return len;
@@ -30,9 +34,26 @@ struct Fx {
         seq.clear();
         qual.clear();
     }
-    void puts(FILE * out);
+
 };
 
+inline std::ostream& operator<<(std::ostream& out, Fx& mate) {
+    if(mate.empty()) {
+        return out;
+    }
+    if(mate.isFasta()) {
+        out << ">"<<mate.name;
+        if(!mate.comment.empty())
+            out<<" "<<mate.comment;
+        out<<"\n"<<mate.seq<<"\n";
+    } else {
+        out << "@"<<mate.name;
+        if(!mate.comment.empty())
+            out<<" "<<mate.comment;
+        out<<"\n"<<mate.seq<<"\n+\n"<<mate.qual<<"\n";
+    }
+    return out;
+}
 /*
  * file1:       File name containing reads from the first mate in the pair
  * file2:       File name containing reads from the second mate in the pair
@@ -60,11 +81,11 @@ struct Fxstream {
     Fxstream(){}
     int open(const char * file1, const char * file2, bool interleaved);
     int close();
-    int read (Fx ** read1, Fx ** read2);
+    int read (Fx& read1, Fx& read2);
 
     private:
-    int readFastaRecord(Fx ** read, std::ifstream& input);
-    int readFastqRecord(Fx ** read, std::ifstream& input);
+    int readFastaRecord(Fx& read, std::ifstream& input);
+    int readFastqRecord(Fx& read, std::ifstream& input);
 
 };
 
