@@ -20,4 +20,4 @@ diff_output_and_report 1.output.fa 1.expected.fa 1b
 diff_output_and_report 1.output.fa 1.expected.fa 1c
 
 ../fxtract -P CAAAGGGATTGAGACGCCACTT 1.fa > 1.output.fa
-diff_output_and_report 1.output.fa 1.expected.fa 1c
+diff_output_and_report 1.output.fa 1.expected.fa 1d
