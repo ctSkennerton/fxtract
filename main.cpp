@@ -330,31 +330,31 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
     Fx mate1, mate2;
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string& data = mate1.seq;
+        std::string * data = &mate1.seq;
         if(opts.H_flag) {
-            data = mate1.name;
+            data = &mate1.name;
 
         } else if(opts.Q_flag){
             if(!mate1.isFasta()) {
-                data = mate1.qual;
+                data = &mate1.qual;
             }
         }
 
-        int ret = regexec(pxr, data.c_str(), 0, NULL, 0);
+        int ret = regexec(pxr, data->c_str(), 0, NULL, 0);
         if(ret == REG_NOMATCH){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
                 if(opts.H_flag) {
-                    data = mate2.name;
+                    data = &mate2.name;
 
                 } else if(opts.Q_flag){
                     if(!mate2.isFasta()) {
-                        data = mate2.seq;
+                        data = &mate2.qual;
                     }
                 } else {
-                    data = mate2.seq;
+                    data = &mate2.seq;
                 }
-                ret = regexec(pxr, data.c_str(), 0, NULL, 0);
+                ret = regexec(pxr, data->c_str(), 0, NULL, 0);
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
                     fprintf(stderr, "%s\n", errorbuf);
@@ -386,33 +386,30 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
     int ovector[30];
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string& data = mate1.seq;
+        std::string * data = &mate1.seq;
         if(opts.H_flag) {
-            data = mate1.name;
+            data = &mate1.name;
 
         } else if(opts.Q_flag){
             if(!mate1.isFasta()) {
-                data = mate1.qual;
+                data = &mate1.qual;
             }
-        } else {
-            data = mate1.seq;
-        }
-
-        int ret = pcre_exec(pxr, NULL, data.c_str(), data.size(), 0, 0, ovector, 30);
+        } 
+        int ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
         if(ret != 1){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
                 if(opts.H_flag) {
-                    data = mate2.name;
+                    data = &mate2.name;
 
                 } else if(opts.Q_flag){
                     if(!mate2.isFasta()) {
-                        data = mate2.seq;
+                        data = &mate2.seq;
                     }
                 } else {
-                    data = mate2.seq;
+                    data = &mate2.seq;
                 }
-                ret = pcre_exec(pxr, NULL, data.c_str(), data.size(), 0, 0, ovector, 30);
+                ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
                     std::cout << mate1 << mate2;
                 }
@@ -432,31 +429,31 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
     Fx mate2;
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string& data = mate1.seq;
+        std::string * data = &mate1.seq;
         if(opts.H_flag) {
-            data = mate1.name;
+            data = &mate1.name;
 
         } else if(opts.Q_flag){
             if(!mate1.isFasta()) {
-                data = mate1.qual;
+                data = &mate1.qual;
             }
         }
 
-        const char * ret = strstr(data.c_str(), pattern);
+        const char * ret = strstr(data->c_str(), pattern);
         if(ret == NULL){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
                 if(opts.H_flag) {
-                    data = mate2.name;
+                    data = &mate2.name;
 
                 } else if(opts.Q_flag){
                     if(!mate2.isFasta()) {
-                        data = mate2.qual;
+                        data = &mate2.qual;
                     }
                 } else {
-                    data = mate2.seq;
+                    data = &mate2.seq;
                 }
-                ret = strstr(data.c_str(), pattern);
+                ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
                     std::cout << mate1 << mate2;
 
