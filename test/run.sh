@@ -35,3 +35,7 @@ diff_output_and_report 2.output.fa 2.expected.fa 2c
 diff_output_and_report 2.output.fa 2.expected.fa 2d
 ../fxtract -HX "HISEQ2000:55:C0JRTACXX:2:1101:11128:12710_1:N:0:CTTGTAAT" 1.fa > 2.output.fa
 diff_output_and_report 2.output.fa 2.expected.fa 2e
+
+# multipattern search
+../fxtract -Hf headers.txt 1.fa > 3.output.fa
+diff_output_and_report 3.output.fa 3.expected.fa 3
