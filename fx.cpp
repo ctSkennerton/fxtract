@@ -24,9 +24,9 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
     }
 
     if(file2 != NULL && interleaved) {
-        fprintf(stderr, "When the interleaved flag is set file2 must equal NULL\n");
+        fprintf(stderr, "A second file cannot be given if the interleaved flag is set\n");
         return 1;
-    } else if (file2 != NULL && !interleaved) {
+    } else if (file2 != NULL) {
         f2.open(file2);
         if(!f2.good()) {
             fprintf(stderr, "failed to open file for mate2\n");
@@ -64,8 +64,11 @@ int Fxstream::readFastaRecord(Fx& read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fasta record. The first line will therefore be the
     // header line
-    if(!f1.good()) {
-        return 1;
+    if(input.fail()) {
+      fprintf(stderr, "%s %d\n", __FILE__, __LINE__);
+        return 2;
+    } else if(input.eof()) {
+        return 0;
     }
 
     input.get();
@@ -77,7 +80,7 @@ int Fxstream::readFastaRecord(Fx& read, std::ifstream& input) {
     // if this is a valid fasta file
     if(input.peek() == '>') {
         fprintf(stderr, "malformed fasta record\n");
-        return 1;
+        return 3;
     }
     do {
         std::string tmp;
@@ -94,7 +97,7 @@ int Fxstream::readFastqRecord(Fx& read, std::ifstream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fastq record. The first line will therefore be the
     // header line
-    if(!f1.good()) {
+    if(!input.good()) {
         return 1;
     }
 
@@ -122,7 +125,9 @@ int Fxstream::readFastqRecord(Fx& read, std::ifstream& input) {
 //http://svnweb.freebsd.org/base/head/usr.bin/grep/file.c?view=markup
 int Fxstream::read( Fx& read1, Fx& read2) {
 
-
+    if(f1.eof()) {
+        return 1;
+    }
     if(t1 == FASTA) {
         if(readFastaRecord(read1, f1)) {
             return 1;
@@ -131,7 +136,7 @@ int Fxstream::read( Fx& read1, Fx& read2) {
             if(readFastaRecord(read2, f1)) {
                 return 1;
             }
-        } else if(f2.is_open()) {
+        } else if(f2.is_open() && f2.good()) {
             if(readFastaRecord(read2, f2)) {
                 return 1;
             }
@@ -144,14 +149,14 @@ int Fxstream::read( Fx& read1, Fx& read2) {
             if(readFastqRecord(read2, f1)) {
                 return 1;
             }
-        } else if(f2.is_open()) {
+        } else if(f2.is_open() && f2.good()) {
             if(readFastqRecord(read2, f2)) {
                 return 1;
             }
         }
     } else {
         // this should never happen as this kind of error should be caught previously
-        fprintf(stderr, "Unknown file parsing error occurred\n");
+        fprintf(stderr, "Internal logic error occurred: %s %d\n", __FILE__, __LINE__);
         return 1;
     }
     return 0;
@@ -162,10 +167,15 @@ int Fxstream::read( Fx& read1, Fx& read2) {
 #ifdef TEST_FXREAD_MAIN
 int main(int argc, char * argv[]) {
     Fxstream stream;
-    stream.open(argv[1], NULL, false);
+    int state;
+    if(argc == 3) {
+        state = stream.open(argv[1], argv[2], false);
+    } else if(argc == 2) {
+        state = stream.open(argv[1], NULL, false);
+    }
     Fx read1, read2;
     while(stream.read(read1, read2) == 0) {
-        std::cout << read1 <<read2;
+        std::cout << read1 << read2;
         read1.clear();
         read2.clear();
     }
