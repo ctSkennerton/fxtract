@@ -46,6 +46,8 @@ struct Options
 #endif
     char * f_flag;
     bool   v_flag;
+    bool   one_flag;
+    bool   two_flag;
 
     Options() : H_flag(false),
                 Q_flag(false),
@@ -58,10 +60,15 @@ struct Options
                 P_flag(false),
 #endif
                 f_flag(NULL),
-                v_flag(false)
+                v_flag(false),
+                one_flag(false),
+                two_flag(false)
     {}
 };
 
+Options opts;
+
+FileManager manager;
 
 void printSingle(Fx ** mate, FILE * out ) {
     if(mate != NULL) {
@@ -88,16 +95,18 @@ static const char usage_msg[] =\
 #endif
     "\t-X           pattern exactly matches the whole string (default: literal substring)\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
-    "\t-v           Inverse the match criteria.\n"
+    //"\t-1           Print only read 1 whether there was a match in read 1 or read 2\n"
+    //"\t-2           Print only read 2 whether there was a match in read 1 or read 2\n"
+    //"\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
     "\t-f <file>    File containing patterns, one per line\n"
     "\t-h           Print this help\n"
     "\t-V           Print version\n";
 //   exit(1);
 //}
 
-int parseOptions(int argc,  char * argv[], Options& opts) {
+int parseOptions(int argc,  char * argv[]) {
     int c;
-    while ((c = getopt(argc, argv, "HhIf:zjqVvrQGEPX")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhIf:zjqVvrQGEPX12")) != -1 ) {
         switch (c) {
             case 'f':
                 opts.f_flag = optarg;
@@ -134,6 +143,15 @@ int parseOptions(int argc,  char * argv[], Options& opts) {
                 break;
             case 'r':
                 opts.r_flag = true;
+                break;
+            case 'v':
+                opts.v_flag = true;
+                break;
+            case '1':
+                opts.one_flag = true;
+                break;
+            case '2':
+                opts.two_flag = true;
                 break;
             case 'h':
             default:
@@ -187,13 +205,12 @@ void tokenizePatternFile(std::ifstream& in, FileManager&  fmanager) {
         }
     }
 }
-static int
-on_match(int strnum, const char *textp, void const * context)
-{
+
+static int on_match(int strnum, const char *textp, void const * context) {
     return  1;
 }
 
-int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
+int hash_search(Fxstream& stream, Options& opts) {
 
 
     Fx mate1, mate2;
@@ -240,7 +257,7 @@ int hash_search(FileManager& manager, Fxstream& stream, Options& opts) {
     return 0;
 }
 
-int multipattern_search(FileManager& manager, Fxstream& stream, Options& opts) {
+int multipattern_search(Fxstream& stream, Options& opts) {
 
 
     Fx mate1, mate2;
@@ -327,7 +344,7 @@ char *get_regerror (int errcode, regex_t *compiled) {
     return buffer;
 }
 
-int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, regex_t * pxr) {
+int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
 
 
     Fx mate1, mate2;
@@ -384,7 +401,7 @@ int posix_regex_search(FileManager& manager, Fxstream& stream, Options& opts, re
     return 0;
 }
 #ifdef HAVE_PCRE
-int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * pxr) {
+int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
     Fx mate1, mate2;
     int ovector[30];
 
@@ -427,7 +444,7 @@ int pcre_search(FileManager& manager, Fxstream& stream, Options& opts, pcre * px
 }
 #endif
 
-int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, const char * pattern) {
+int simple_string_search(Fxstream& stream, Options& opts, const char * pattern) {
     Fx mate1;
     Fx mate2;
 
@@ -474,10 +491,7 @@ int simple_string_search(FileManager& manager, Fxstream& stream, Options& opts, 
 
 int main(int argc, char * argv[])
 {
-    FileManager manager;
-    Options opts;
-
-    int opt_idx = parseOptions(argc, argv, opts);
+    int opt_idx = parseOptions(argc, argv);
     std::string pattern;
     if(opts.f_flag == NULL) {
 
@@ -538,7 +552,7 @@ int main(int argc, char * argv[])
             stream.close();
             return 1;
         }
-        ret = posix_regex_search(manager, stream, opts, &px_regex);
+        ret = posix_regex_search(stream, opts, &px_regex);
         regfree(&px_regex);
         stream.close();
         return ret;
@@ -562,20 +576,20 @@ int main(int argc, char * argv[])
             return 1;
         }
 
-        pcre_search(manager, stream, opts, re);
+        pcre_search(stream, opts, re);
         pcre_free(re);
         stream.close();
 
     }
 #endif
     else if(opts.X_flag) {
-        hash_search(manager, stream, opts);
+        hash_search(stream, opts);
     }
     else if(opts.f_flag) {
-        multipattern_search(manager, stream, opts);
+        multipattern_search(stream, opts);
 
     } else {
-        simple_string_search(manager, stream, opts, pattern.c_str());
+        simple_string_search(stream, opts, pattern.c_str());
     }
 
     stream.close();
