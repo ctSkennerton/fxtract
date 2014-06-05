@@ -1,5 +1,4 @@
 #!/bin/sh
-set -x
 
 diff_output_and_report() {
   diff $1 $2 >/dev/null
