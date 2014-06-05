@@ -162,6 +162,9 @@ int Fxstream::read( Fx& read1, Fx& read2) {
     return 0;
 }
 
+int Fxstream::read(ReadPair& pair) {
+    return this->read(pair.first, pair.second);
+}
 
 
 #ifdef TEST_FXREAD_MAIN
@@ -173,11 +176,14 @@ int main(int argc, char * argv[]) {
     } else if(argc == 2) {
         state = stream.open(argv[1], NULL, false);
     }
-    Fx read1, read2;
-    while(stream.read(read1, read2) == 0) {
-        std::cout << read1 << read2;
-        read1.clear();
-        read2.clear();
+    ReadPair pair;
+    //Fx read1, read2;
+    while(stream.read(pair.first, pair.second) == 0) {
+        //std::cout << read1 << read2;
+        std::cout << pair;
+        pair.clear();
+        //read1.clear();
+        //read2.clear();
     }
     stream.close();
     return 0;

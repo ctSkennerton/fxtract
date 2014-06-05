@@ -45,6 +45,7 @@ struct Options
     bool   P_flag;
 #endif
     char * f_flag;
+    bool   v_flag;
 
     Options() : H_flag(false),
                 Q_flag(false),
@@ -56,7 +57,8 @@ struct Options
 #ifdef HAVE_PCRE
                 P_flag(false),
 #endif
-                f_flag(NULL)
+                f_flag(NULL),
+                v_flag(false)
     {}
 };
 
@@ -86,6 +88,7 @@ static const char usage_msg[] =\
 #endif
     "\t-X           pattern exactly matches the whole string (default: literal substring)\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
+    "\t-v           Inverse the match criteria.\n"
     "\t-f <file>    File containing patterns, one per line\n"
     "\t-h           Print this help\n"
     "\t-V           Print version\n";
@@ -94,7 +97,7 @@ static const char usage_msg[] =\
 
 int parseOptions(int argc,  char * argv[], Options& opts) {
     int c;
-    while ((c = getopt(argc, argv, "HhIf:zjqVrQGEPX")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhIf:zjqVvrQGEPX")) != -1 ) {
         switch (c) {
             case 'f':
                 opts.f_flag = optarg;

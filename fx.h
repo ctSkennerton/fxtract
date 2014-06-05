@@ -37,6 +37,18 @@ struct Fx {
 
 };
 
+//typedef std::pair<Fx, Fx> ReadPair;
+
+struct ReadPair {
+    Fx first;
+    Fx second;
+
+    void clear() {
+        first.clear();
+        second.clear();
+    }
+};
+
 inline std::ostream& operator<<(std::ostream& out, Fx& mate) {
     if(mate.empty()) {
         return out;
@@ -52,6 +64,11 @@ inline std::ostream& operator<<(std::ostream& out, Fx& mate) {
             out<<" "<<mate.comment;
         out<<"\n"<<mate.seq<<"\n+\n"<<mate.qual<<"\n";
     }
+    return out;
+}
+
+inline std::ostream& operator<<(std::ostream& out, ReadPair& pair) {
+    out << pair.first <<pair.second;
     return out;
 }
 /*
@@ -82,6 +99,7 @@ struct Fxstream {
     int open(const char * file1, const char * file2, bool interleaved);
     int close();
     int read (Fx& read1, Fx& read2);
+    int read (ReadPair& pair);
 
     private:
     int readFastaRecord(Fx& read, std::ifstream& input);
