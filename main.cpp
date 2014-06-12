@@ -36,6 +36,7 @@ struct Options
 {
     bool   H_flag;
     bool   Q_flag;
+    bool   C_flag;
     bool   G_flag;
     bool   E_flag;
     bool   X_flag;
@@ -51,6 +52,7 @@ struct Options
 
     Options() : H_flag(false),
                 Q_flag(false),
+                C_flag(false),
                 G_flag(false),
                 E_flag(false),
                 X_flag(false),
@@ -88,6 +90,8 @@ static const char usage_msg[] =\
     "[-hHv] {-f pattern_file | pattern} <read1.fx> [<read2.fx>]\n"
     "\t-H           Evaluate patterns in the context of headers (default: sequences)\n"
     "\t-Q           Evaluate patterns in the context of quality scores (default: sequences)\n"
+    "\t-C           Evaluate patters in the context of comment strings - everything after\n"
+    "\t             the first space on the header line of the record (default: sequences)\n"
     "\t-G           pattern is a posix basic regular expression (default: literal substring)\n"
     "\t-E           pattern is a posix extended regular expression (default: literal substring)\n"
 #ifdef HAVE_PCRE
@@ -106,13 +110,13 @@ static const char usage_msg[] =\
 
 int parseOptions(int argc,  char * argv[]) {
     int c;
-    while ((c = getopt(argc, argv, "HhIf:zjqVvrQGEPX12")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhCIf:zjqVvrQGEPX12")) != -1 ) {
         switch (c) {
-            case 'f':
-                opts.f_flag = optarg;
-                break;
             case 'E':
                 opts.E_flag = true;
+                break;
+            case 'f':
+                opts.f_flag = optarg;
                 break;
             case 'G':
                 opts.G_flag = true;
@@ -120,26 +124,29 @@ int parseOptions(int argc,  char * argv[]) {
             case 'I':
                 opts.I_flag = true;
                 break;
+            case 'Q':
+                opts.Q_flag = true;
+                break;
 #ifdef HAVE_PCRE
             case 'P':
                 opts.P_flag = true;
                 break;
 #endif
-            case 'Q':
-                opts.Q_flag = true;
-                break;
             /*case 'e':
                 opts.e_flag = true;
                 break;*/
-            case 'X':
-                opts.X_flag = true;
-                break;
             case 'V':
                 puts(VERSION);
                 exit(1);
                 break;
+            case 'X':
+                opts.X_flag = true;
+                break;
             case 'H':
                 opts.H_flag = true;
+                break;
+            case 'C':
+                opts.C_flag = true;
                 break;
             case 'r':
                 opts.r_flag = true;
@@ -210,23 +217,30 @@ static int on_match(int strnum, const char *textp, void const * context) {
     return  1;
 }
 
+static std::string * prepare_data(Options & opts, Fx& read) {
+  if(opts.H_flag) {
+    return &read.name;
+
+  } else if(opts.Q_flag){
+    if(!read.isFasta()) {
+      return &read.qual;
+    }
+  } else if (opts.C_flag) {
+    return & read.comment;
+  }
+
+  return &read.seq;
+}
+
 int hash_search(Fxstream& stream, Options& opts) {
 
 
     Fx mate1, mate2;
     std::map<std::string, int>::iterator iter;
     while(stream.read(mate1, mate2) == 0) {
-        std::string * data;
-        if(opts.H_flag) {
-            data = &mate1.name;
+        
+        std::string * data = prepare_data(opts, mate1);
 
-        } else if(opts.Q_flag){
-            if(!mate1.isFasta()) {
-                data = &mate1.qual;
-            }
-        } else {
-            data = &mate1.seq;
-        }
         FILE * out = manager.find(*data);
         if(out != NULL) {
             std::cout << mate1 << mate2;
@@ -234,20 +248,11 @@ int hash_search(Fxstream& stream, Options& opts) {
         } else {
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
-                if(opts.H_flag) {
-                    data = &mate2.name;
-
-                } else if(opts.Q_flag){
-                    if(!mate2.isFasta()) {
-                        data = &mate2.seq;
-                    }
-                } else {
-                    data = &mate2.seq;
+                data = prepare_data(opts, mate2);
+                FILE * out = manager.find(*data);
+                if(out != NULL) {
+                  std::cout << mate1 << mate2;
                 }
-            }
-            FILE * out = manager.find(*data);
-            if(out != NULL) {
-                std::cout << mate1 << mate2;
             }
         }
         mate1.clear();
@@ -291,6 +296,9 @@ int multipattern_search(Fxstream& stream, Options& opts) {
                 data.ptr = mate1.qual.c_str();
                 data.len = (size_t)mate1.len;
             }
+        } else if (opts.C_flag){
+            data.ptr = mate1.comment.c_str();
+            data.len = mate1.comment.size();
         } else {
             data.ptr = mate1.seq.c_str();
             data.len = (size_t)mate1.len;
@@ -313,6 +321,9 @@ int multipattern_search(Fxstream& stream, Options& opts) {
                         data.ptr = mate2.seq.c_str();
                         data.len = (size_t)mate2.len;
                     }
+                } else if (opts.C_flag){
+                  data.ptr = mate2.comment.c_str();
+                  data.len = mate2.comment.size();
                 } else {
                     data.ptr = mate2.seq.c_str();
                     data.len = (size_t)mate2.len;
@@ -350,30 +361,13 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
     Fx mate1, mate2;
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string * data = &mate1.seq;
-        if(opts.H_flag) {
-            data = &mate1.name;
-
-        } else if(opts.Q_flag){
-            if(!mate1.isFasta()) {
-                data = &mate1.qual;
-            }
-        }
+        std::string * data = prepare_data(opts, mate1);
 
         int ret = regexec(pxr, data->c_str(), 0, NULL, 0);
         if(ret == REG_NOMATCH){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
-                if(opts.H_flag) {
-                    data = &mate2.name;
-
-                } else if(opts.Q_flag){
-                    if(!mate2.isFasta()) {
-                        data = &mate2.qual;
-                    }
-                } else {
-                    data = &mate2.seq;
-                }
+                data = prepare_data(opts, mate2);
                 ret = regexec(pxr, data->c_str(), 0, NULL, 0);
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
@@ -406,29 +400,12 @@ int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
     int ovector[30];
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string * data = &mate1.seq;
-        if(opts.H_flag) {
-            data = &mate1.name;
-
-        } else if(opts.Q_flag){
-            if(!mate1.isFasta()) {
-                data = &mate1.qual;
-            }
-        } 
+        std::string * data = prepare_data(opts, mate1);
         int ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
         if(ret != 1){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
-                if(opts.H_flag) {
-                    data = &mate2.name;
-
-                } else if(opts.Q_flag){
-                    if(!mate2.isFasta()) {
-                        data = &mate2.seq;
-                    }
-                } else {
-                    data = &mate2.seq;
-                }
+                data = prepare_data(opts, mate2);
                 ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
                     std::cout << mate1 << mate2;
@@ -449,30 +426,13 @@ int simple_string_search(Fxstream& stream, Options& opts, const char * pattern) 
     Fx mate2;
 
     while(stream.read(mate1, mate2) == 0) {
-        std::string * data = &mate1.seq;
-        if(opts.H_flag) {
-            data = &mate1.name;
-
-        } else if(opts.Q_flag){
-            if(!mate1.isFasta()) {
-                data = &mate1.qual;
-            }
-        }
+        std::string * data = prepare_data(opts, mate1);
 
         const char * ret = strstr(data->c_str(), pattern);
         if(ret == NULL){
             // read one did not have a match check read 2 if it exists
             if(!mate2.empty()) {
-                if(opts.H_flag) {
-                    data = &mate2.name;
-
-                } else if(opts.Q_flag){
-                    if(!mate2.isFasta()) {
-                        data = &mate2.qual;
-                    }
-                } else {
-                    data = &mate2.seq;
-                }
+                data = prepare_data(opts, mate2);
                 ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
                     std::cout << mate1 << mate2;
