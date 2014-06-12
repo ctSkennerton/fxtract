@@ -35,6 +35,7 @@ diff_output_and_report 2.output.fa 2.expected.fa 2d
 ../fxtract -HX "HISEQ2000:55:C0JRTACXX:2:1101:11128:12710_1:N:0:CTTGTAAT" 1.fa > 2.output.fa
 diff_output_and_report 2.output.fa 2.expected.fa 2e
 
+
 # multipattern search
 ../fxtract -Hf headers.txt 1.fa > 3.output.fa
 diff_output_and_report 3.output.fa 3.expected.fa 3
@@ -42,3 +43,7 @@ diff_output_and_report 3.output.fa 3.expected.fa 3
 # paired reads
 ../fxtract -H "HSQ868392H08B7ADXX:2:1112:8977:35114" 4_1.fa 4_2.fa > 4.output.fa
 diff_output_and_report 4.output.fa 4.expected.fa 4
+
+# search for comment strings
+../fxtract -C "Accumulibacter" 5.fa > 5.output.fa
+diff_output_and_report 5.output.fa 5.expected.fa 5
