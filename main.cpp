@@ -17,6 +17,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstring>
 
 #include "util.h"
 #include "fileManager.h"
@@ -27,7 +28,7 @@ extern "C" {
 #include "util/bpsearch.h"
 #include "util/msutil.h"
 }
-#define VERSION "1.0-alpha"
+#define VERSION "1.0-beta"
 
 #ifndef REG_BASIC
 #define REG_BASIC 0
@@ -49,6 +50,7 @@ struct Options
     bool   v_flag;
     bool   one_flag;
     bool   two_flag;
+    bool   c_flag;
 
     Options() : H_flag(false),
                 Q_flag(false),
@@ -64,13 +66,16 @@ struct Options
                 f_flag(NULL),
                 v_flag(false),
                 one_flag(false),
-                two_flag(false)
+                two_flag(false),
+                c_flag(false)
     {}
 };
 
 Options opts;
 
 FileManager manager;
+
+static int matched_records = 0;
 
 void printSingle(Fx ** mate, FILE * out ) {
     if(mate != NULL) {
@@ -85,7 +90,6 @@ void printPair(Fx ** mate1, Fx ** mate2, FILE * out) {
     printSingle(mate2, out);
 }
 
-//void usage() {
 static const char usage_msg[] =\
     "[-hHv] {-f pattern_file | pattern} <read1.fx> [<read2.fx>]\n"
     "\t-H           Evaluate patterns in the context of headers (default: sequences)\n"
@@ -101,17 +105,19 @@ static const char usage_msg[] =\
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
     //"\t-1           Print only read 1 whether there was a match in read 1 or read 2\n"
     //"\t-2           Print only read 2 whether there was a match in read 1 or read 2\n"
-    //"\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
+    "\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
+    "\t-c           Print only the count of reads (or pairs) that were found\n"
     "\t-f <file>    File containing patterns, one per line\n"
     "\t-h           Print this help\n"
     "\t-V           Print version\n";
-//   exit(1);
-//}
 
 int parseOptions(int argc,  char * argv[]) {
     int c;
-    while ((c = getopt(argc, argv, "HhCIf:zjqVvrQGEPX12")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhCcIf:zjqVvrQGEPX12")) != -1 ) {
         switch (c) {
+            case 'c':
+                opts.c_flag = true;
+                break;
             case 'E':
                 opts.E_flag = true;
                 break;
@@ -191,29 +197,39 @@ void split( std::vector<std::string> & theStringVector,  /* Altered/returned val
     }
 }
 
-void tokenizePatternFile(std::ifstream& in, FileManager&  fmanager) {
+void tokenizePatternFile(std::ifstream& in) {
     // tokenize a line from the pattern file.  The first part will be the pattern and the second
     // part is the file to write to.
 
     std::string lineptr;
 
-    while(in >> lineptr) {
+    while(in.good()) {
+        std::getline(in, lineptr);
+        if(lineptr.empty()) {
+            continue;
+        }
         std::vector<std::string> fields;
         split(fields, lineptr, "\t");
         switch(fields.size()) {
             case 0:
                 break;
             case 1:
-                fmanager.add(fields[0]);
+                manager.add(fields[0]);
                 break;
             default:
-                fmanager.add(fields[0], fields[1]);
+                manager.add(fields[0], fields[1]);
                 break;
         }
     }
 }
 
 static int on_match(int strnum, const char *textp, void const * context) {
+    ReadPair * pair = (ReadPair *) context;
+    if(opts.c_flag) {
+        ++matched_records;
+        return 1;
+    }
+    std::cout << *pair;
     return  1;
 }
 
@@ -232,7 +248,7 @@ static std::string * prepare_data(Options & opts, Fx& read) {
   return &read.seq;
 }
 
-int hash_search(Fxstream& stream, Options& opts) {
+int hash_search(Fxstream& stream) {
 
 
     ReadPair pair;
@@ -251,7 +267,9 @@ int hash_search(Fxstream& stream, Options& opts) {
                 data = prepare_data(opts, pair.second);
                 FILE * out = manager.find(*data);
                 if(out != NULL) {
-                  std::cout << pair;
+                    on_match(0, NULL, &pair);
+                } else if (opts.v_flag) {
+                    on_match(0, NULL, &pair);
                 }
             }
         }
@@ -261,26 +279,40 @@ int hash_search(Fxstream& stream, Options& opts) {
     return 0;
 }
 
-int multipattern_search(Fxstream& stream, Options& opts) {
+int multipattern_search(Fxstream& stream) {
 
 
     ReadPair pair;
 
     std::string conc;
     std::map<std::string, int>::iterator iter;
-    for (iter = manager.patternMapping.begin(); iter != manager.patternMapping.end() ; ++iter ) {
+    for (iter = manager.patternMapping.begin(); iter != manager.patternMapping.end(); ++iter ) {
         conc += iter->first + "\n";
     }
-    char * concstr  = (char *) malloc(conc.size() * sizeof(char *));
-    strncpy(concstr, conc.c_str(), conc.size());
+    char * concstr = new char[conc.size() + 1];
+    std::copy(conc.begin(), conc.end(), concstr);
+    concstr[conc.size()] = '\0';
+
+    // this is a hack as refsplit creates an extra blank record, which stuffs
+    // up the search if the string ends with a new line character. Basically
+    // here I'm replacing the last newline with null to prevent this
     concstr[conc.size()-1] = '\0';
     int npatts;
+
     MEMREF *pattv =  refsplit(concstr, '\n', &npatts);
 
     SSEARCH *ssp = ssearch_create(pattv, npatts);
 
     if(ssp == NULL) {
-        fprintf(stderr, "problem initalizing multi-search");
+        fprintf(stderr, "problem initalizing multi-search\n");
+        /*for(int i = 0;i < npatts; ++i) {
+            fprintf(stderr, "%s %d\n", pattv[i].ptr, pattv[i].len);
+        }
+        fprintf(stderr, "came from std::string:\n%s\n%d\n", conc.c_str(),conc.size());
+        fprintf(stderr, "generated from manager strings:\n");
+        for (iter = manager.patternMapping.begin(); iter != manager.patternMapping.end() ; ++iter ) {
+            fprintf(stderr, "%s\n", iter->first.c_str());
+        }*/
         return 1;
     }
 
@@ -302,13 +334,8 @@ int multipattern_search(Fxstream& stream, Options& opts) {
             data.ptr = pair.first.seq.c_str();
             data.len = (size_t)pair.first.len;
         }
-        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
-        if(ret) {
-            FILE * out = manager.find(data.ptr);
-            if(out != NULL) {
-                std::cout << pair;
-            }
-        } else {
+        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, &pair);
+        if(! ret) {
             // read one did not have a match check read 2 if it exists
             if(!pair.second.empty()) {
                 if(opts.H_flag) {
@@ -327,19 +354,18 @@ int multipattern_search(Fxstream& stream, Options& opts) {
                     data.ptr = pair.second.seq.c_str();
                     data.len = (size_t)pair.second.len;
                 }
-                ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
-                if(ret) {
-                    FILE * out = manager.find(data.ptr);
-                    if(out != NULL) {
-                        std::cout << pair;
-                    }
+                ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, &pair);
+                if(!ret && opts.v_flag) {
+                    on_match(0,NULL,&pair);
                 }
+            } else if (opts.v_flag) {
+                on_match(0,NULL,&pair);
             }
         }
         pair.clear();
     }
 
-    free(concstr);
+    delete [] concstr;
     free(pattv);
     ssearch_destroy(ssp);
     return 0;
@@ -353,7 +379,7 @@ char *get_regerror (int errcode, regex_t *compiled) {
     return buffer;
 }
 
-int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
+int posix_regex_search(Fxstream& stream, regex_t * pxr) {
 
 
     ReadPair pair;
@@ -367,15 +393,20 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
             if(!pair.second.empty()) {
                 data = prepare_data(opts, pair.second);
                 ret = regexec(pxr, data->c_str(), 0, NULL, 0);
+                if(ret == REG_NOMATCH && opts.v_flag) {
+                    on_match(0,NULL,&pair);
+                }
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
                     fprintf(stderr, "%s\n", errorbuf);
                     free(errorbuf);
                     return 1;
                 } else if(ret == 0) {
-                    std::cout << pair;
+                    on_match(0,NULL,&pair);
 
                 }
+            } else if (opts.v_flag) {
+                on_match(0,NULL,&pair);
             }
         } else if(ret != 0) {
             char * errorbuf = get_regerror(ret, pxr);
@@ -383,7 +414,7 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
             free(errorbuf);
             return 1;
         } else {
-            std::cout << pair;
+            on_match(0,NULL,&pair);
 
         }
         pair.clear();
@@ -392,7 +423,7 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
     return 0;
 }
 #ifdef HAVE_PCRE
-int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
+int pcre_search(Fxstream& stream, pcre * pxr) {
     ReadPair pair;
     int ovector[30];
 
@@ -405,11 +436,15 @@ int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
                 data = prepare_data(opts, pair.second);
                 ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
-                    std::cout << pair;
+                    on_match(0,NULL,&pair);
+                } else if(opts.v_flag) {
+                    on_match(0,NULL,&pair);
                 }
+            } else if(opts.v_flag) {
+                on_match(0,NULL,&pair);
             }
         } else {
-            std::cout << pair;
+            on_match(0,NULL,&pair);
         }
         pair.clear();
     }
@@ -417,7 +452,7 @@ int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
 }
 #endif
 
-int simple_string_search(Fxstream& stream, Options& opts, const char * pattern) {
+int simple_string_search(Fxstream& stream, const char * pattern) {
     ReadPair pair;
 
     while(stream.read(pair) == 0) {
@@ -430,12 +465,13 @@ int simple_string_search(Fxstream& stream, Options& opts, const char * pattern) 
                 data = prepare_data(opts, pair.second);
                 ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
-                    std::cout << pair;
-
+                    on_match(0,NULL,&pair);
                 }
+            } else if (opts.v_flag) {
+                on_match(0,NULL,&pair);
             }
         } else {
-            std::cout << pair;
+            on_match(0,NULL,&pair);
         }
         pair.clear();
     }
@@ -476,7 +512,7 @@ int main(int argc, char * argv[])
             fprintf(stderr, "problem opening pattern file\n");
             exit(1);
         } else {
-            tokenizePatternFile(in, manager);
+            tokenizePatternFile(in);
         }
     }
 
@@ -506,7 +542,7 @@ int main(int argc, char * argv[])
             stream.close();
             return 1;
         }
-        ret = posix_regex_search(stream, opts, &px_regex);
+        ret = posix_regex_search(stream, &px_regex);
         regfree(&px_regex);
         stream.close();
         return ret;
@@ -530,22 +566,25 @@ int main(int argc, char * argv[])
             return 1;
         }
 
-        pcre_search(stream, opts, re);
+        pcre_search(stream, re);
         pcre_free(re);
         stream.close();
 
     }
 #endif
     else if(opts.X_flag) {
-        hash_search(stream, opts);
+        hash_search(stream);
     }
     else if(opts.f_flag) {
-        multipattern_search(stream, opts);
+        multipattern_search(stream);
 
     } else {
-        simple_string_search(stream, opts, pattern.c_str());
+        simple_string_search(stream, pattern.c_str());
     }
 
     stream.close();
+    if(opts.c_flag) {
+        printf("%d\n", matched_records);
+    }
     return 0;
 }
