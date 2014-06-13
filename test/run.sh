@@ -47,3 +47,13 @@ diff_output_and_report 4.output.fa 4.expected.fa 4
 # search for comment strings
 ../fxtract -C "Accumulibacter" 5.fa > 5.output.fa
 diff_output_and_report 5.output.fa 5.expected.fa 5
+
+
+# inverse the match
+../fxtract -Hv HISEQ2001 1.fa > 6.output.fa
+diff_output_and_report 6.output.fa 6.expected.fa 6
+
+# count the matches
+../fxtract -Hc HISEQ2000 1.fa > 7.output.fa
+diff_output_and_report 7.output.fa 7.expected.fa 7
+
