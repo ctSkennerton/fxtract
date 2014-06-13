@@ -235,28 +235,27 @@ static std::string * prepare_data(Options & opts, Fx& read) {
 int hash_search(Fxstream& stream, Options& opts) {
 
 
-    Fx mate1, mate2;
+    ReadPair pair;
     std::map<std::string, int>::iterator iter;
-    while(stream.read(mate1, mate2) == 0) {
-        
-        std::string * data = prepare_data(opts, mate1);
+    while(stream.read(pair) == 0) {
+
+        std::string * data = prepare_data(opts, pair.first);
 
         FILE * out = manager.find(*data);
         if(out != NULL) {
-            std::cout << mate1 << mate2;
+            std::cout << pair;
 
         } else {
             // read one did not have a match check read 2 if it exists
-            if(!mate2.empty()) {
-                data = prepare_data(opts, mate2);
+            if(!pair.second.empty()) {
+                data = prepare_data(opts, pair.second);
                 FILE * out = manager.find(*data);
                 if(out != NULL) {
-                  std::cout << mate1 << mate2;
+                  std::cout << pair;
                 }
             }
         }
-        mate1.clear();
-        mate2.clear();
+        pair.clear();
     }
 
     return 0;
@@ -265,7 +264,7 @@ int hash_search(Fxstream& stream, Options& opts) {
 int multipattern_search(Fxstream& stream, Options& opts) {
 
 
-    Fx mate1, mate2;
+    ReadPair pair;
 
     std::string conc;
     std::map<std::string, int>::iterator iter;
@@ -285,60 +284,59 @@ int multipattern_search(Fxstream& stream, Options& opts) {
         return 1;
     }
 
-    while(stream.read(mate1, mate2) == 0) {
+    while(stream.read(pair) == 0) {
         MEMREF data;
         if(opts.H_flag) {
-            data.ptr = mate1.name.c_str();
-            data.len = mate1.name.size();
+            data.ptr = pair.first.name.c_str();
+            data.len = pair.first.name.size();
 
         } else if(opts.Q_flag){
-            if(!mate1.isFasta()) {
-                data.ptr = mate1.qual.c_str();
-                data.len = (size_t)mate1.len;
+            if(!pair.first.isFasta()) {
+                data.ptr = pair.first.qual.c_str();
+                data.len = (size_t)pair.first.len;
             }
         } else if (opts.C_flag){
-            data.ptr = mate1.comment.c_str();
-            data.len = mate1.comment.size();
+            data.ptr = pair.first.comment.c_str();
+            data.len = pair.first.comment.size();
         } else {
-            data.ptr = mate1.seq.c_str();
-            data.len = (size_t)mate1.len;
+            data.ptr = pair.first.seq.c_str();
+            data.len = (size_t)pair.first.len;
         }
         int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
         if(ret) {
             FILE * out = manager.find(data.ptr);
             if(out != NULL) {
-                std::cout << mate1 << mate2;
+                std::cout << pair;
             }
         } else {
             // read one did not have a match check read 2 if it exists
-            if(!mate2.empty()) {
+            if(!pair.second.empty()) {
                 if(opts.H_flag) {
-                    data.ptr = mate2.name.c_str();
-                    data.len = mate2.name.size();
+                    data.ptr = pair.second.name.c_str();
+                    data.len = pair.second.name.size();
 
                 } else if(opts.Q_flag){
-                    if(!mate2.isFasta()) {
-                        data.ptr = mate2.seq.c_str();
-                        data.len = (size_t)mate2.len;
+                    if(!pair.second.isFasta()) {
+                        data.ptr = pair.second.seq.c_str();
+                        data.len = (size_t)pair.second.len;
                     }
                 } else if (opts.C_flag){
-                  data.ptr = mate2.comment.c_str();
-                  data.len = mate2.comment.size();
+                  data.ptr = pair.second.comment.c_str();
+                  data.len = pair.second.comment.size();
                 } else {
-                    data.ptr = mate2.seq.c_str();
-                    data.len = (size_t)mate2.len;
+                    data.ptr = pair.second.seq.c_str();
+                    data.len = (size_t)pair.second.len;
                 }
                 ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, NULL);
                 if(ret) {
                     FILE * out = manager.find(data.ptr);
                     if(out != NULL) {
-                        std::cout << mate1 << mate2;
+                        std::cout << pair;
                     }
                 }
             }
         }
-        mate1.clear();
-        mate2.clear();
+        pair.clear();
     }
 
     free(concstr);
@@ -358,16 +356,16 @@ char *get_regerror (int errcode, regex_t *compiled) {
 int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
 
 
-    Fx mate1, mate2;
+    ReadPair pair;
 
-    while(stream.read(mate1, mate2) == 0) {
-        std::string * data = prepare_data(opts, mate1);
+    while(stream.read(pair) == 0) {
+        std::string * data = prepare_data(opts, pair.first);
 
         int ret = regexec(pxr, data->c_str(), 0, NULL, 0);
         if(ret == REG_NOMATCH){
             // read one did not have a match check read 2 if it exists
-            if(!mate2.empty()) {
-                data = prepare_data(opts, mate2);
+            if(!pair.second.empty()) {
+                data = prepare_data(opts, pair.second);
                 ret = regexec(pxr, data->c_str(), 0, NULL, 0);
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
@@ -375,7 +373,7 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
                     free(errorbuf);
                     return 1;
                 } else if(ret == 0) {
-                    std::cout << mate1 << mate2;
+                    std::cout << pair;
 
                 }
             }
@@ -385,65 +383,61 @@ int posix_regex_search(Fxstream& stream, Options& opts, regex_t * pxr) {
             free(errorbuf);
             return 1;
         } else {
-            std::cout << mate1 << mate2;
+            std::cout << pair;
 
         }
-        mate1.clear();
-        mate2.clear();
+        pair.clear();
     }
 
     return 0;
 }
 #ifdef HAVE_PCRE
 int pcre_search(Fxstream& stream, Options& opts, pcre * pxr) {
-    Fx mate1, mate2;
+    ReadPair pair;
     int ovector[30];
 
-    while(stream.read(mate1, mate2) == 0) {
-        std::string * data = prepare_data(opts, mate1);
+    while(stream.read(pair) == 0) {
+        std::string * data = prepare_data(opts, pair.first);
         int ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
         if(ret != 1){
             // read one did not have a match check read 2 if it exists
-            if(!mate2.empty()) {
-                data = prepare_data(opts, mate2);
+            if(!pair.second.empty()) {
+                data = prepare_data(opts, pair.second);
                 ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
-                    std::cout << mate1 << mate2;
+                    std::cout << pair;
                 }
             }
         } else {
-            std::cout << mate1 << mate2;
+            std::cout << pair;
         }
-        mate1.clear();
-        mate2.clear();
+        pair.clear();
     }
     return 0;
 }
 #endif
 
 int simple_string_search(Fxstream& stream, Options& opts, const char * pattern) {
-    Fx mate1;
-    Fx mate2;
+    ReadPair pair;
 
-    while(stream.read(mate1, mate2) == 0) {
-        std::string * data = prepare_data(opts, mate1);
+    while(stream.read(pair) == 0) {
+        std::string * data = prepare_data(opts, pair.first);
 
         const char * ret = strstr(data->c_str(), pattern);
         if(ret == NULL){
             // read one did not have a match check read 2 if it exists
-            if(!mate2.empty()) {
-                data = prepare_data(opts, mate2);
+            if(!pair.second.empty()) {
+                data = prepare_data(opts, pair.second);
                 ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
-                    std::cout << mate1 << mate2;
+                    std::cout << pair;
 
                 }
             }
         } else {
-            std::cout << mate1 << mate2;
+            std::cout << pair;
         }
-        mate1.clear();
-        mate2.clear();
+        pair.clear();
     }
     return 0;
 
