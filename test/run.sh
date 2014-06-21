@@ -57,3 +57,10 @@ diff_output_and_report 6.output.fa 6.expected.fa 6
 ../fxtract -Hc HISEQ2000 1.fa > 7.output.fa
 diff_output_and_report 7.output.fa 7.expected.fa 7
 
+# test out different fasta file styles
+../fxtract -H 1101:11128:12710 8.fa >8.output.fa
+diff_output_and_report 8.output.fa 8.expected.fa 8
+
+../fxtract -H 1101:11128:12710 9.fa >9.output.fa
+diff_output_and_report 9.output.fa 8.expected.fa 9
+

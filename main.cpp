@@ -30,6 +30,7 @@ extern "C" {
 }
 #define VERSION "1.0-beta"
 
+// BSD defines this but linux does not
 #ifndef REG_BASIC
 #define REG_BASIC 0
 #endif
@@ -179,7 +180,7 @@ void split( std::vector<std::string> & theStringVector,  /* Altered/returned val
        std::string theString,
        const  std::string theDelimiter)
 {
-    assert(theDelimiter.size() > 0); // My own ASSERT macro.
+    assert(theDelimiter.size() > 0);
 
     size_t  start = 0, end = 0;
 
@@ -259,7 +260,7 @@ int hash_search(Fxstream& stream) {
 
         FILE * out = manager.find(*data);
         if(out != NULL) {
-            std::cout << pair;
+            on_match(0, NULL, &pair);
 
         } else {
             // read one did not have a match check read 2 if it exists
