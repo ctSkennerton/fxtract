@@ -176,6 +176,11 @@ int main(int argc, char * argv[]) {
     } else if(argc == 2) {
         state = stream.open(argv[1], NULL, false);
     }
+    if(state != 0) {
+        fprintf(stderr, "Failed to open the stream\n");
+        stream.close();
+        return 1;
+    }
     ReadPair pair;
     //Fx read1, read2;
     while(stream.read(pair.first, pair.second) == 0) {

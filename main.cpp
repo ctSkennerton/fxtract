@@ -517,12 +517,18 @@ int main(int argc, char * argv[])
     }
 
     Fxstream stream;
+    int stream_state = 1;
     if(opt_idx == argc - 2) {
         // two read files
-        stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
+        stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
     } else if (opt_idx == argc - 1) {
         // one read file
-        stream.open(argv[opt_idx], NULL, opts.I_flag);
+        stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag);
+    }
+    if(stream_state != 0) {
+        fprintf(stderr, "Failed to open stream\n");
+        stream.close();
+        return 1;
     }
 
     if(opts.E_flag | opts.G_flag) {
