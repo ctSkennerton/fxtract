@@ -9,19 +9,28 @@ hash lookups or multi-pattern searching as required. By default
 will look in the sequence of each record but can be told to look
 in the header, comment or quality sections of a record.
 
+Dependencies
+------------
+The boost iostream library is required and by proxy both [zlib](http://www.zlib.net/)
+and [bzip2](http://www.bzip.org/)
+libraries are required to be installed on your system; PCRE is an optional dependency.
+If you do not have the boost iostream library installed (it does need to be
+installed as it contains compiled components) follow the instructions on the
+[Boost website](http://www.boost.org/doc/libs/1_55_0/libs/iostreams/doc/index.html).
+
 
 Install
 -------
-Hopefully the following will work for you, if not open an
-[issue](https://github.com/ctSkennerton/fxtract/issues)
+Make sure the dependencies above are installed and then
+hopefully the following will work for you (if not open an
+[issue](https://github.com/ctSkennerton/fxtract/issues))
 ```
 $ git clone --recursive https://github.com/ctSkennerton/fxtract.git
 $ cd fxtract
 $ make
 ```
-The only external library dependancy is PCRE, if you don't have it on
-your system or if you get an error message during instalation try the
-following
+If PCRE is not installed on your system or if you get an error message during
+installation try the following
 ```
 $ make NO_PCRE=1
 ```
@@ -35,15 +44,10 @@ and see if they pass, I hope that they do.
 
 Usage
 -----
-Currently fxtract does not support compressed files. If you want this
-functionality you can easily add it using bash and anonymous named pipes
+
 ```
-$ fxtract ATTACTAG <(gunzip -c /path/to/file.gz)
-```
-this mechanism is generalizable to multiple input files with any
-compression algorithm
-```
-$ fxtract ATTACTAG <(bunzip2 -c /path/to/file.bz2) # bzip2
-$ fxtract ATTACTAG <(bunzip2 -c /path/to/file.bz2) <(bunzip2 -c /path/to/file2.bz2) # two files
-$ fxtract ATTACTAG <(unxz -c /path/to/file.xz) # xz
+$ fxtract ATTACTAG /path/to/file.fq.gz
+$ fxtract ATTACTAG /path/to/file.fq.bz2
+$ fxtract ATTACTAG /path/to/file.fq.bz2 /path/to/file2.fq.bz2  # paired reads
+$ fxtract -H seq_1 /path/to/file.fa  # search for headers
 ```

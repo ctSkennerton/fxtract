@@ -1,4 +1,4 @@
-LIBS := -lz
+LIBS := -lboost_iostreams
 EXECUTABLE := fxtract
 util := util
 OBJECTS := main.o fileManager.o fx.o util.o

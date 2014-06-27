@@ -6,39 +6,68 @@
 #include <cstdio>
 #include "fx.h"
 
-int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
-    f1.open(file1);
-    if(!f1.good()) {
-        fprintf(stderr, "failed to open file for mate1\n");
-        return 1;
-    } else {
-        char c = f1.peek();
+int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file) {
+    char magic[3];
+    file.read(magic, 3);
+    bool bzip2 = false, gzip = false;
+
+    if (magic[0] == '\x1f' && magic[1] == '\x8b') {
+        // gzip magic number
+      //std::cout << "looks like a gzip file"<<std::endl;
+      gzip = true;
+    } else if (magic[0] == 'B' && magic[1] == 'Z' && magic[2] == 'h') {
+        //bzip2 magic number
+      //std::cout << "looks like a bzip2 file"<<std::endl;
+      bzip2 = true;
+    }
+    file.seekg(0);
+    try {
+        if(gzip) {
+          in.push(boost::iostreams::gzip_decompressor());
+        } else if (bzip2) {
+          in.push(boost::iostreams::bzip2_decompressor());
+        }
+        in.push(file);
+
+        char c = in.peek();
         if(c == '>') {
             t1 = FASTA;
         } else if( c == '@') {
             t1 = FASTQ;
         } else {
-            fprintf(stderr, "The file does not look like either fasta or fastq\n");
+            fprintf(stderr, "The file does not look like either fasta or fastq: %c\n", c);
             return 1;
         }
+    }
+    catch(const boost::iostreams::gzip_error& e) {
+        fprintf(stderr, "%s\n", e.what() );
+    } catch(const boost::iostreams::bzip2_error& e) {
+        fprintf(stderr, "%s\n", e.what() );
+    }
+    return 0;
+}
+
+int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
+    in1.open(file1, std::ios_base::in | std::ios_base::binary);
+    //std::ifstream file(argv[1], std::ios_base::in | std::ios_base::binary);
+
+    if(!in1.good()) {
+        fprintf(stderr, "failed to open file for mate1\n");
+        return 1;
+    } else if(checkFormat(f1, in1)) {
+        return 1;
     }
 
     if(file2 != NULL && interleaved) {
         fprintf(stderr, "A second file cannot be given if the interleaved flag is set\n");
         return 1;
     } else if (file2 != NULL) {
-        f2.open(file2);
-        if(!f2.good()) {
+        in2.open(file2, std::ios_base::in | std::ios_base::binary);
+        if(!in2.good()) {
             fprintf(stderr, "failed to open file for mate2\n");
             return 1;
         } else {
-            char c = f2.peek();
-            if(c == '>') {
-                t2 = FASTA;
-            } else if( c == '@') {
-                t2 = FASTQ;
-            } else {
-                fprintf(stderr, "The file does not look like either fasta or fastq\n");
+            if(checkFormat(f2, in2)) {
                 return 1;
             }
 
@@ -53,19 +82,19 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
 }
 
 int Fxstream::close() {
-    f1.close();
-    if(f2.is_open()) {
-        f2.close();
+    in1.close();
+    if(in2.is_open()) {
+        in2.close();
     }
     return 0;
 }
 
-int Fxstream::readFastaRecord(Fx& read, std::ifstream& input) {
+int Fxstream::readFastaRecord(Fx& read, std::istream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fasta record. The first line will therefore be the
     // header line
     if(input.fail()) {
-      fprintf(stderr, "%s %d\n", __FILE__, __LINE__);
+      fprintf(stderr, "Internal Logic error: %s %d\n", __FILE__, __LINE__);
         return 2;
     } else if(input.eof()) {
         return 0;
@@ -93,7 +122,7 @@ int Fxstream::readFastaRecord(Fx& read, std::ifstream& input) {
     return 0;
 }
 
-int Fxstream::readFastqRecord(Fx& read, std::ifstream& input) {
+int Fxstream::readFastqRecord(Fx& read, std::istream& input) {
     // assume that we enter this funcion always pointing at the next
     // start of a fastq record. The first line will therefore be the
     // header line
@@ -136,7 +165,7 @@ int Fxstream::read( Fx& read1, Fx& read2) {
             if(readFastaRecord(read2, f1)) {
                 return 1;
             }
-        } else if(f2.is_open() && f2.good()) {
+        } else if(in2.is_open() && in2.good()) {
             if(readFastaRecord(read2, f2)) {
                 return 1;
             }
@@ -149,7 +178,7 @@ int Fxstream::read( Fx& read1, Fx& read2) {
             if(readFastqRecord(read2, f1)) {
                 return 1;
             }
-        } else if(f2.is_open() && f2.good()) {
+        } else if(in2.is_open() && in2.good()) {
             if(readFastqRecord(read2, f2)) {
                 return 1;
             }

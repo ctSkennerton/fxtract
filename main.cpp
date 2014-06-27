@@ -28,7 +28,7 @@ extern "C" {
 #include "util/bpsearch.h"
 #include "util/msutil.h"
 }
-#define VERSION "1.0-beta"
+#define VERSION "1.0"
 
 // BSD defines this but linux does not
 #ifndef REG_BASIC

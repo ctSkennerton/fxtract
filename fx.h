@@ -3,6 +3,9 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
 
 struct Fx {
     std::string name;
@@ -89,11 +92,13 @@ struct Fxstream {
         FASTA,
         FASTQ
     };
-    std::ifstream f1;
-    std::ifstream f2;
-    read_type     t1;
-    read_type     t2;
-    bool          interleaved;
+    std::ifstream                       in1;
+    std::ifstream                       in2;
+    boost::iostreams::filtering_istream f1;
+    boost::iostreams::filtering_istream f2;
+    read_type                           t1;
+    read_type                           t2;
+    bool                                interleaved;
 
     Fxstream(){}
     int open(const char * file1, const char * file2, bool interleaved);
@@ -102,8 +107,9 @@ struct Fxstream {
     int read (ReadPair& pair);
 
     private:
-    int readFastaRecord(Fx& read, std::ifstream& input);
-    int readFastqRecord(Fx& read, std::ifstream& input);
+    int checkFormat(boost::iostreams::filtering_istream& in, std::istream& file);
+    int readFastaRecord(Fx& read, std::istream& input);
+    int readFastqRecord(Fx& read, std::istream& input);
 
 };
 
