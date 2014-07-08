@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 diff_output_and_report() {
   diff $1 $2 >/dev/null
@@ -50,8 +50,18 @@ diff_output_and_report 5.output.fa 5.expected.fa 5
 
 
 # inverse the match
-../fxtract -Hv HISEQ2001 1.fa > 6.output.fa
-diff_output_and_report 6.output.fa 6.expected.fa 6
+../fxtract -Hv 647449011 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6a
+../fxtract -HvX 647449011 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6b
+../fxtract -HvP 647449011 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6c
+../fxtract -HvG 647449011 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6d
+../fxtract -HvE 647449011 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6e
+../fxtract -Hvf <(echo 647449011) 11.fa > 11.output.fa
+diff_output_and_report 11.output.fa 11.expected.fa 6f
 
 # count the matches
 ../fxtract -Hc HISEQ2000 1.fa > 7.output.fa
