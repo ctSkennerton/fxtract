@@ -10,7 +10,11 @@ diff_output_and_report() {
 
 }
 
-# search for sequences using the different regex engines
+print_test_header() {
+    echo "Testing..." $1
+}
+
+print_test_header "search for sequences using the different regex engines"
 ../fxtract CAAAGGGATTGAGACGCCACTT 1.fa > 1.output.fa
 diff_output_and_report 1.output.fa 1.expected.fa 1a
 
@@ -23,7 +27,7 @@ diff_output_and_report 1.output.fa 1.expected.fa 1c
 ../fxtract -P CAAAGGGATTGAGACGCCACTT 1.fa > 1.output.fa
 diff_output_and_report 1.output.fa 1.expected.fa 1d
 
-# search for headers
+print_test_header "search for headers"
 ../fxtract -H "HISEQ2000:55:C0JRTACXX:2:1101:11128:12710_1:N:0:CTTGTAAT" 1.fa > 2.output.fa
 diff_output_and_report 2.output.fa 2.expected.fa 2a
 ../fxtract -HG "HISEQ2000:55:C0JRTACXX:2:1101:11128:12710_1:N:0:CTTGTAAT" 1.fa > 2.output.fa
@@ -36,20 +40,20 @@ diff_output_and_report 2.output.fa 2.expected.fa 2d
 diff_output_and_report 2.output.fa 2.expected.fa 2e
 
 
-# multipattern search
+print_test_header "multipattern search"
 ../fxtract -Hf headers.txt 1.fa > 3.output.fa
 diff_output_and_report 3.output.fa 3.expected.fa 3
 
-# paired reads
+print_test_header "paired reads"
 ../fxtract -H "HSQ868392H08B7ADXX:2:1112:8977:35114" 4_1.fa 4_2.fa > 4.output.fa
 diff_output_and_report 4.output.fa 4.expected.fa 4
 
-# search for comment strings
+print_test_header "search in comment strings"
 ../fxtract -C "Accumulibacter" 5.fa > 5.output.fa
 diff_output_and_report 5.output.fa 5.expected.fa 5
 
 
-# inverse the match
+print_test_header "inverted match"
 ../fxtract -Hv 647449011 11.fa > 11.output.fa
 diff_output_and_report 11.output.fa 11.expected.fa 6a
 ../fxtract -HvX 647449011 11.fa > 11.output.fa
@@ -63,18 +67,18 @@ diff_output_and_report 11.output.fa 11.expected.fa 6e
 ../fxtract -Hvf <(echo 647449011) 11.fa > 11.output.fa
 diff_output_and_report 11.output.fa 11.expected.fa 6f
 
-# count the matches
+print_test_header "count the matches"
 ../fxtract -Hc HISEQ2000 1.fa > 7.output.fa
 diff_output_and_report 7.output.fa 7.expected.fa 7
 
-# test out different fasta file styles
+print_test_header "test out different fasta file styles"
 ../fxtract -H 1101:11128:12710 8.fa >8.output.fa
 diff_output_and_report 8.output.fa 8.expected.fa 8
 
 ../fxtract -H 1101:11128:12710 9.fa >9.output.fa
 diff_output_and_report 9.output.fa 8.expected.fa 9
 
-# compressed files
+print_test_header "compressed files"
 gzip 8.fa
 ../fxtract -H 1101:11128:12710 8.fa.gz >8.output.fa
 diff_output_and_report 8.output.fa 8.expected.fa 10a
@@ -82,7 +86,7 @@ diff_output_and_report 8.output.fa 8.expected.fa 10a
 gunzip 8.fa.gz
 bzip2 8.fa
 ../fxtract -H 1101:11128:12710 8.fa.bz2 >8.output.fa
-diff_output_and_report 8.output.fa 8.expected.fa 10a
+diff_output_and_report 8.output.fa 8.expected.fa 10b
 bunzip2 8.fa.bz2
 
 gzip 4_1.fa 4_2.fa
