@@ -272,6 +272,8 @@ int hash_search(Fxstream& stream) {
                 } else if (opts.v_flag) {
                     on_match(0, NULL, &pair);
                 }
+            } else if (opts.v_flag) {
+                on_match(0, NULL, &pair);
             }
         }
         pair.clear();
