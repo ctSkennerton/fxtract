@@ -3,9 +3,9 @@
 diff_output_and_report() {
   diff $1 $2 >/dev/null
   if [ $? != 0 ]; then
-      printf "\x1b[31m%s\x1b[0m\n" "FAILED test $3!"
+      printf "\t\x1b[31m%s\x1b[0m\n" "FAILED test $3!"
   else
-      printf "PASSED test $3!\n"
+      printf "\tPASSED test $3!\n"
   fi
 
 }

@@ -260,7 +260,9 @@ int hash_search(Fxstream& stream) {
 
         FILE * out = manager.find(*data);
         if(out != NULL) {
-            on_match(0, NULL, &pair);
+            if(! opts.v_flag) {
+                on_match(0, NULL, &pair);
+            }
 
         } else {
             // read one did not have a match check read 2 if it exists
@@ -416,7 +418,7 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
             fprintf(stderr, "%s\n", errorbuf);
             free(errorbuf);
             return 1;
-        } else {
+        } else if(! opts.v_flag ){
             on_match(0,NULL,&pair);
 
         }
@@ -446,7 +448,7 @@ int pcre_search(Fxstream& stream, pcre * pxr) {
             } else if(opts.v_flag) {
                 on_match(0,NULL,&pair);
             }
-        } else {
+        } else if (!opts.v_flag){
             on_match(0,NULL,&pair);
         }
         pair.clear();
@@ -473,7 +475,7 @@ int simple_string_search(Fxstream& stream, const char * pattern) {
             } else if (opts.v_flag) {
                 on_match(0,NULL,&pair);
             }
-        } else {
+        } else if (!opts.v_flag) {
             on_match(0,NULL,&pair);
         }
         pair.clear();
