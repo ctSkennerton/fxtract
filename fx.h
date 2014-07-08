@@ -59,12 +59,12 @@ inline std::ostream& operator<<(std::ostream& out, Fx& mate) {
     if(mate.isFasta()) {
         out << ">"<<mate.name;
         if(!mate.comment.empty())
-            out<<" "<<mate.comment;
+            out<<mate.comment;
         out<<"\n"<<mate.seq<<"\n";
     } else {
         out << "@"<<mate.name;
         if(!mate.comment.empty())
-            out<<" "<<mate.comment;
+            out<<mate.comment;
         out<<"\n"<<mate.seq<<"\n+\n"<<mate.qual<<"\n";
     }
     return out;
