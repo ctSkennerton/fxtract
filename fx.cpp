@@ -7,6 +7,7 @@
 #include "fx.h"
 
 int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file) {
+#if (HAVE_LIBZ || HAVE_LIBBZ2)
     char magic[3];
     file.read(magic, 3);
     bool bzip2 = false, gzip = false;
@@ -21,12 +22,18 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
       bzip2 = true;
     }
     file.seekg(0);
+#endif
     try {
+#ifdef HAVE_LIBZ
         if(gzip) {
           in.push(boost::iostreams::gzip_decompressor());
-        } else if (bzip2) {
+        }
+#endif
+#ifdef HAVE_LIBBZ2 
+	else if (bzip2) {
           in.push(boost::iostreams::bzip2_decompressor());
         }
+#endif
         in.push(file);
 
         char c = in.peek();
