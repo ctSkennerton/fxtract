@@ -51,6 +51,7 @@ struct Options
     bool   v_flag;
     bool   one_flag;
     bool   two_flag;
+    bool   S_flag;
     bool   c_flag;
 
     Options() : H_flag(false),
@@ -68,6 +69,7 @@ struct Options
                 v_flag(false),
                 one_flag(false),
                 two_flag(false),
+                S_flag(false),
                 c_flag(false)
     {}
 };
@@ -92,7 +94,9 @@ void printPair(Fx ** mate1, Fx ** mate2, FILE * out) {
 }
 
 static const char usage_msg[] =\
-    "[-hHv] {-f pattern_file | pattern} <read1.fx> [<read2.fx>]\n"
+    "[options] {-f pattern_file | pattern} {<read1.fx> <read2.fx>}...\n"
+    "       fxtract [options] -I {-f pattern_file | pattern} <read12.fx>...\n"
+    "       fxtract [options] -S {-f pattern_file | pattern} <read.fx>...\n"
     "\t-H           Evaluate patterns in the context of headers (default: sequences)\n"
     "\t-Q           Evaluate patterns in the context of quality scores (default: sequences)\n"
     "\t-C           Evaluate patters in the context of comment strings - everything after\n"
@@ -103,7 +107,9 @@ static const char usage_msg[] =\
     "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
 #endif
     "\t-X           pattern exactly matches the whole string (default: literal substring)\n"
+    "\t-r           Match the reverse complement of a literal pattern\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
+    "\t-S           The files do not contain pairs. Allows for multiple files to be given on the command line\n"
     //"\t-1           Print only read 1 whether there was a match in read 1 or read 2\n"
     //"\t-2           Print only read 2 whether there was a match in read 1 or read 2\n"
     "\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
@@ -114,7 +120,7 @@ static const char usage_msg[] =\
 
 int parseOptions(int argc,  char * argv[]) {
     int c;
-    while ((c = getopt(argc, argv, "HhCcIf:zjqVvrQGEPX12")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhCcIf:zjqVvrQGEPX12S")) != -1 ) {
         switch (c) {
             case 'c':
                 opts.c_flag = true;
@@ -130,6 +136,9 @@ int parseOptions(int argc,  char * argv[]) {
                 break;
             case 'I':
                 opts.I_flag = true;
+                break;
+            case 'S':
+                opts.S_flag = true;
                 break;
             case 'Q':
                 opts.Q_flag = true;
@@ -494,7 +503,7 @@ int main(int argc, char * argv[])
             puts("Please provide a pattern (or pattern file) and at least one input file");
             usage(usage_msg);
         } else if (opt_idx >= argc - 1) {
-            puts("Please provide an input file (or two)");
+            puts("Please provide an input file");
             usage(usage_msg);
         }
         pattern = argv[opt_idx];
@@ -509,7 +518,7 @@ int main(int argc, char * argv[])
 
     } else {
         if (opt_idx > argc - 1) {
-            puts("Please provide an input file (or two)");
+            puts("Please provide an input file");
             usage(usage_msg);
         }
         std::ifstream in (opts.f_flag);
@@ -521,81 +530,88 @@ int main(int argc, char * argv[])
         }
     }
 
-    Fxstream stream;
-    int stream_state = 1;
-    if(opt_idx == argc - 2) {
-        // two read files
-        stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
-    } else if (opt_idx == argc - 1) {
-        // one read file
-        stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag);
-    }
-    if(stream_state != 0) {
-        fprintf(stderr, "Failed to open stream\n");
-        stream.close();
-        return 1;
-    }
-
-    if(opts.E_flag | opts.G_flag) {
-        // Posix  regex
-        regex_t px_regex;
-        int flags = REG_NOSUB;  //only need to report success or failure
-        if(opts.E_flag) {
-            flags |= REG_EXTENDED;
+    while(opt_idx < argc) {
+        Fxstream stream;
+        int stream_state = 1;
+        if(! opts.S_flag && ! opts.I_flag) {
+            // two read files
+            stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
         } else {
-            flags |= REG_BASIC;
+            // one read file
+            stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag);
         }
-        int ret = regcomp(&px_regex, pattern.c_str(), flags);
-        if(ret) {
-            char * errorbuf = get_regerror(ret, &px_regex);
-            fprintf(stderr, "%s\n", errorbuf);
-            free(errorbuf);
+        if(stream_state != 0) {
+            fprintf(stderr, "Failed to open stream\n");
             stream.close();
             return 1;
         }
-        ret = posix_regex_search(stream, &px_regex);
-        regfree(&px_regex);
-        stream.close();
-        return ret;
-    }
+
+        if(opts.E_flag | opts.G_flag) {
+            // Posix  regex
+            regex_t px_regex;
+            int flags = REG_NOSUB;  //only need to report success or failure
+            if(opts.E_flag) {
+                flags |= REG_EXTENDED;
+            } else {
+                flags |= REG_BASIC;
+            }
+            int ret = regcomp(&px_regex, pattern.c_str(), flags);
+            if(ret) {
+                char * errorbuf = get_regerror(ret, &px_regex);
+                fprintf(stderr, "%s\n", errorbuf);
+                free(errorbuf);
+                stream.close();
+                return 1;
+            }
+            ret = posix_regex_search(stream, &px_regex);
+            regfree(&px_regex);
+            stream.close();
+        }
 #ifdef HAVE_PCRE
-    else if (opts.P_flag) {
+        else if (opts.P_flag) {
 
-        // PCRE regex
-        pcre *re;
-        const char *error;
-        int erroffset;
+            // PCRE regex
+            pcre *re;
+            const char *error;
+            int erroffset;
 
-        re = pcre_compile(
-            pattern.c_str(),              /* the pattern */
-            0,                    /* default options */
-            &error,               /* for error message */
-            &erroffset,           /* for error offset */
-            NULL);                /* use default character tables */
-        if (re == NULL) {
-            printf("PCRE compilation failed at offset %d: %s\n", erroffset, error);
-            return 1;
+            re = pcre_compile(
+                pattern.c_str(),              /* the pattern */
+                0,                    /* default options */
+                &error,               /* for error message */
+                &erroffset,           /* for error offset */
+                NULL);                /* use default character tables */
+            if (re == NULL) {
+                printf("PCRE compilation failed at offset %d: %s\n", erroffset, error);
+                return 1;
+            }
+
+            pcre_search(stream, re);
+            pcre_free(re);
+            stream.close();
+
+        }
+#endif
+        else if(opts.X_flag) {
+            hash_search(stream);
+        }
+        else if(opts.f_flag) {
+            multipattern_search(stream);
+
+        } else {
+            simple_string_search(stream, pattern.c_str());
         }
 
-        pcre_search(stream, re);
-        pcre_free(re);
         stream.close();
+        if(opts.c_flag) {
+            printf("%d\n", matched_records);
+        }
 
-    }
-#endif
-    else if(opts.X_flag) {
-        hash_search(stream);
-    }
-    else if(opts.f_flag) {
-        multipattern_search(stream);
-
-    } else {
-        simple_string_search(stream, pattern.c_str());
-    }
-
-    stream.close();
-    if(opts.c_flag) {
-        printf("%d\n", matched_records);
+        if(! opts.S_flag && ! opts.I_flag) {
+            opt_idx+=2;
+        } else {
+            opt_idx++;
+        }
     }
     return 0;
 }
