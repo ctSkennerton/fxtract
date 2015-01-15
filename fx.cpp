@@ -14,11 +14,11 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
 
     if (magic[0] == '\x1f' && magic[1] == '\x8b') {
         // gzip magic number
-      std::cerr << "looks like a gzip file"<<std::endl;
+      //std::cerr << "looks like a gzip file"<<std::endl;
       gzip = true;
     } else if (magic[0] == 'B' && magic[1] == 'Z' && magic[2] == 'h') {
         //bzip2 magic number
-      std::cerr << "looks like a bzip2 file"<<std::endl;
+      //std::cerr << "looks like a bzip2 file"<<std::endl;
       bzip2 = true;
     }
     file.seekg(0);
@@ -38,10 +38,10 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
 
         char c = in.peek();
         if(c == '>') {
-            std::cerr << "looks like a fasta file"<<std::endl;
+            //std::cerr << "looks like a fasta file"<<std::endl;
             t = FASTA;
         } else if( c == '@') {
-            std::cerr << "looks like a fastq file"<<std::endl;
+            //std::cerr << "looks like a fastq file"<<std::endl;
             t = FASTQ;
         } else {
             fprintf(stderr, "The file does not look like either fasta or fastq: %c\n", c);
