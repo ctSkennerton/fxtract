@@ -107,7 +107,7 @@ struct Fxstream {
     int read (ReadPair& pair);
 
     private:
-    int checkFormat(boost::iostreams::filtering_istream& in, std::istream& file);
+    int checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t);
     int readFastaRecord(Fx& read, std::istream& input);
     int readFastqRecord(Fx& read, std::istream& input);
 

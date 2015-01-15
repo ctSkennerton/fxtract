@@ -6,7 +6,7 @@
 #include <cstdio>
 #include "fx.h"
 
-int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file) {
+int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t) {
 #if (HAVE_LIBZ || HAVE_LIBBZ2)
     char magic[3];
     file.read(magic, 3);
@@ -14,11 +14,11 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
 
     if (magic[0] == '\x1f' && magic[1] == '\x8b') {
         // gzip magic number
-      //std::cout << "looks like a gzip file"<<std::endl;
+      std::cerr << "looks like a gzip file"<<std::endl;
       gzip = true;
     } else if (magic[0] == 'B' && magic[1] == 'Z' && magic[2] == 'h') {
         //bzip2 magic number
-      //std::cout << "looks like a bzip2 file"<<std::endl;
+      std::cerr << "looks like a bzip2 file"<<std::endl;
       bzip2 = true;
     }
     file.seekg(0);
@@ -38,9 +38,11 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
 
         char c = in.peek();
         if(c == '>') {
-            t1 = FASTA;
+            std::cerr << "looks like a fasta file"<<std::endl;
+            t = FASTA;
         } else if( c == '@') {
-            t1 = FASTQ;
+            std::cerr << "looks like a fastq file"<<std::endl;
+            t = FASTQ;
         } else {
             fprintf(stderr, "The file does not look like either fasta or fastq: %c\n", c);
             return 1;
@@ -61,7 +63,7 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
     if(!in1.good()) {
         fprintf(stderr, "failed to open file for mate1\n");
         return 1;
-    } else if(checkFormat(f1, in1)) {
+    } else if(checkFormat(f1, in1, t1)) {
         return 1;
     }
 
@@ -74,7 +76,7 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
             fprintf(stderr, "failed to open file for mate2\n");
             return 1;
         } else {
-            if(checkFormat(f2, in2)) {
+            if(checkFormat(f2, in2, t2)) {
                 return 1;
             }
 
