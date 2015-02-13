@@ -101,13 +101,13 @@ struct Fxstream {
     bool                                interleaved;
 
     Fxstream(){}
-    int open(const char * file1, const char * file2, bool interleaved);
+    int open(const char * file1, const char * file2, bool interleaved, bool gzip, bool bzip2);
     int close();
     int read (Fx& read1, Fx& read2);
     int read (ReadPair& pair);
 
     private:
-    int checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t);
+    int checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t, bool gzip, bool bzip2);
     int readFastaRecord(Fx& read, std::istream& input);
     int readFastqRecord(Fx& read, std::istream& input);
 

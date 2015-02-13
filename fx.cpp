@@ -6,23 +6,7 @@
 #include <cstdio>
 #include "fx.h"
 
-int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t) {
-#if (HAVE_LIBZ || HAVE_LIBBZ2)
-    char magic[3];
-    file.read(magic, 3);
-    bool bzip2 = false, gzip = false;
-
-    if (magic[0] == '\x1f' && magic[1] == '\x8b') {
-        // gzip magic number
-      //std::cerr << "looks like a gzip file"<<std::endl;
-      gzip = true;
-    } else if (magic[0] == 'B' && magic[1] == 'Z' && magic[2] == 'h') {
-        //bzip2 magic number
-      //std::cerr << "looks like a bzip2 file"<<std::endl;
-      bzip2 = true;
-    }
-    file.seekg(0);
-#endif
+int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t, bool gzip, bool bzip2) {
     try {
 #ifdef HAVE_LIBZ
         if(gzip) {
@@ -44,7 +28,7 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
             //std::cerr << "looks like a fastq file"<<std::endl;
             t = FASTQ;
         } else {
-            fprintf(stderr, "The file does not look like either fasta or fastq: %c\n", c);
+            fprintf(stderr, "bad character found: %c\n", c);
             return 1;
         }
     }
@@ -56,14 +40,16 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
     return 0;
 }
 
-int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
+int Fxstream::open(const char * file1, const char * file2, bool interleaved, bool gzip, bool bzip2) {
+    std::cerr << file1 <<" "<<interleaved <<" " << gzip << " "<< bzip2<<std::endl;
     in1.open(file1, std::ios_base::in | std::ios_base::binary);
     //std::ifstream file(argv[1], std::ios_base::in | std::ios_base::binary);
 
     if(!in1.good()) {
         fprintf(stderr, "failed to open file for mate1\n");
         return 1;
-    } else if(checkFormat(f1, in1, t1)) {
+    } else if(checkFormat(f1, in1, t1, gzip, bzip2)) {
+        fprintf(stderr, "The file %s does not look like either fasta or fastq\n", file1);
         return 1;
     }
 
@@ -76,7 +62,8 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
             fprintf(stderr, "failed to open file for mate2\n");
             return 1;
         } else {
-            if(checkFormat(f2, in2, t2)) {
+            if(checkFormat(f2, in2, t2, gzip, bzip2)) {
+                fprintf(stderr, "The file %s does not look like either fasta or fastq\n", file2);
                 return 1;
             }
 

@@ -28,7 +28,7 @@ extern "C" {
 #include "util/bpsearch.h"
 #include "util/msutil.h"
 }
-#define VERSION "1.0"
+#define VERSION "1.1"
 
 // BSD defines this but linux does not
 #ifndef REG_BASIC
@@ -53,6 +53,8 @@ struct Options
     bool   two_flag;
     bool   S_flag;
     bool   c_flag;
+    bool   z_flag;
+    bool   j_flag;
 
     Options() : H_flag(false),
                 Q_flag(false),
@@ -70,7 +72,9 @@ struct Options
                 one_flag(false),
                 two_flag(false),
                 S_flag(false),
-                c_flag(false)
+                c_flag(false),
+                z_flag(false),
+                j_flag(false)
     {}
 };
 
@@ -115,6 +119,12 @@ static const char usage_msg[] =\
     "\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
     "\t-c           Print only the count of reads (or pairs) that were found\n"
     "\t-f <file>    File containing patterns, one per line\n"
+#ifdef HAVE_LIBZ
+    "\t-z           Files are gzip compressed\n"
+#endif
+#ifdef HAVE_LIBBZ2
+    "\t-j           Files are bzip2 compressed\n"
+#endif
     "\t-h           Print this help\n"
     "\t-V           Print version\n";
 
@@ -175,6 +185,12 @@ int parseOptions(int argc,  char * argv[]) {
                 break;
             case '2':
                 opts.two_flag = true;
+                break;
+            case 'z':
+                opts.z_flag = true;
+                break;
+            case 'j':
+                opts.j_flag = true;
                 break;
             case 'h':
             default:
@@ -535,10 +551,10 @@ int main(int argc, char * argv[])
         int stream_state = 1;
         if(! opts.S_flag && ! opts.I_flag) {
             // two read files
-            stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
+            stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag, opts.z_flag, opts.j_flag);
         } else {
             // one read file
-            stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag);
+            stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag, opts.z_flag, opts.j_flag);
         }
         if(stream_state != 0) {
             fprintf(stderr, "Failed to open stream\n");
