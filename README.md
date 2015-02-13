@@ -46,8 +46,9 @@ Usage
 -----
 
 ```
-$ fxtract ATTACTAG /path/to/file.fq.gz
-$ fxtract ATTACTAG /path/to/file.fq.bz2
-$ fxtract ATTACTAG /path/to/file.fq.bz2 /path/to/file2.fq.bz2  # paired reads
+$ fxtract  ATTACTAG /path/to/file.fq
+$ fxtract -z ATTACTAG /path/to/file.fq.gz  # -z for gzip file
+$ fxtract -j ATTACTAG /path/to/file.fq.bz2 # -j for bzip2 file
+$ fxtract -j ATTACTAG /path/to/file.fq.bz2 /path/to/file2.fq.bz2  # paired reads
 $ fxtract -H seq_1 /path/to/file.fa  # search for headers
 ```
