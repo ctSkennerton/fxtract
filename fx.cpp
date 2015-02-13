@@ -41,7 +41,6 @@ int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream&
 }
 
 int Fxstream::open(const char * file1, const char * file2, bool interleaved, bool gzip, bool bzip2) {
-    std::cerr << file1 <<" "<<interleaved <<" " << gzip << " "<< bzip2<<std::endl;
     in1.open(file1, std::ios_base::in | std::ios_base::binary);
     //std::ifstream file(argv[1], std::ios_base::in | std::ios_base::binary);
 
