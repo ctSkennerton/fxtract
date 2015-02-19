@@ -72,7 +72,6 @@ FileManager::~FileManager() {
 void FileManager::add(std::string pattern, std::string filename) {
     int ret;
     // check if the pattern has been seen before
-    std::cerr << pattern << " : " << filename<<std::endl;
     std::map<std::string, int>::iterator pm_iter = patternMapping.find(pattern);
     std::map<std::string, int>::iterator fp_iter;
     if(pm_iter == patternMapping.end()) {
