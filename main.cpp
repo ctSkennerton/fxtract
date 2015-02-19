@@ -22,13 +22,13 @@
 #include "util.h"
 #include "fileManager.h"
 #include "fx.h"
+#include "version.h"
 
 extern "C" {
 #include "util/ssearch.h"
 #include "util/bpsearch.h"
 #include "util/msutil.h"
 }
-#define VERSION "1.1"
 
 // BSD defines this but linux does not
 #ifndef REG_BASIC
@@ -163,7 +163,7 @@ int parseOptions(int argc,  char * argv[]) {
                 opts.e_flag = true;
                 break;*/
             case 'V':
-                puts(VERSION);
+                puts(PACKAGE_VERSION);
                 exit(1);
                 break;
             case 'X':

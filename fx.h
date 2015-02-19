@@ -31,33 +31,10 @@ struct Fx {
     bool isFasta() {
         return qual.empty();
     }
-    void clear() {
-        name.clear();
-        comment.clear();
-        seq.clear();
-        qual.clear();
-    }
-    void print(FILE * out) {
-        if(!empty()) {
-            if(isFasta()) {
-                fprintf(out, ">%s", name.c_str());
-                if(!comment.empty()) {
-                    fprintf(out, "%s",comment.c_str());
-                }
-                fprintf(out, "\n%s\n", seq.c_str());
-            } else {
-                fprintf(out, "@%s", name.c_str());
-                if(!comment.empty()) {
-                    fprintf(out, "%s", comment.c_str());
-                }
-                fprintf(out, "\n%s+\n%s\n", seq.c_str(), qual.c_str());
-            }
-        }
-    }
-
+    void clear();
+    void print(FILE * out);
 };
 
-//typedef std::pair<Fx, Fx> ReadPair;
 
 struct ReadPair {
     Fx first;

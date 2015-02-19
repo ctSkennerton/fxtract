@@ -6,6 +6,32 @@
 #include <cstdio>
 #include "fx.h"
 
+void Fx::clear() {
+    name.clear();
+    comment.clear();
+    seq.clear();
+    qual.clear();
+}
+
+void Fx::print(FILE * out) {
+    if(!empty()) {
+        if(isFasta()) {
+            fprintf(out, ">%s", name.c_str());
+            if(!comment.empty()) {
+                fprintf(out, "%s",comment.c_str());
+            }
+            fprintf(out, "\n%s\n", seq.c_str());
+        } else {
+            fprintf(out, "@%s", name.c_str());
+            if(!comment.empty()) {
+                fprintf(out, "%s", comment.c_str());
+            }
+            fprintf(out, "\n%s\n+\n%s\n", seq.c_str(), qual.c_str());
+        }
+    }
+}
+
+
 int Fxstream::checkFormat(boost::iostreams::filtering_istream& in, std::istream& file, read_type& t, bool gzip, bool bzip2) {
     try {
 #ifdef HAVE_LIBZ
