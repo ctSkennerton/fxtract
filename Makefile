@@ -4,8 +4,8 @@ util := util
 OBJECTS := main.o fileManager.o fx.o util.o
 PREFIX := /usr/local/bin
 
-LIBZ := 0
-LIBBZ2 := 0
+LIBZ := 1
+LIBBZ2 := 1
 
 ifndef NO_PCRE
 	LIBS += -lpcre
