@@ -30,7 +30,11 @@ FileWrapper::FileWrapper(std::string filename) {
 
 int FileWrapper::open() {
     if(!fileOpened) {
-        file = fopen(filename.c_str(), "a");
+        if(recordsWritten) {
+            file = fopen(filename.c_str(), "a");
+        } else {
+            file = fopen(filename.c_str(), "w");
+        }
     }
 
     if (file == NULL) {
