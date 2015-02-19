@@ -10,6 +10,21 @@ diff_output_and_report() {
 
 }
 
+diff_output_and_report2() {
+  diff $1 $3 >/dev/null
+  if [ $? != 0 ]; then
+      printf "\t\x1b[31m%s\x1b[0m\n" "FAILED test $5!"
+  else
+      diff $2 $4 >/dev/null
+      if [ $? != 0 ]; then
+          printf "\t\x1b[31m%s\x1b[0m\n" "FAILED test $5!"
+      else
+          printf "\tPASSED test $5!\n"
+      fi
+  fi
+
+}
+
 print_test_header() {
     echo "Testing..." $1
 }
@@ -101,3 +116,10 @@ bunzip2 4_1.fa.bz2 4_2.fa.bz2
 print_test_header "multiple files"
 ../fxtract -CS Accumulibacter 1.fa 11.fa 5.fa > 12.output.fa
 diff_output_and_report 12.output.fa 5.expected.fa 11
+
+print_test_header "multiple outputs"
+../fxtract -HXf headers2.txt 1.fa
+diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expected 12a
+
+../fxtract -Hf headers2.txt 1.fa
+diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expected 12b
