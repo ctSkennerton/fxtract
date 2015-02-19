@@ -101,4 +101,3 @@ bunzip2 4_1.fa.bz2 4_2.fa.bz2
 print_test_header "multiple files"
 ../fxtract -CS Accumulibacter 1.fa 11.fa 5.fa > 12.output.fa
 diff_output_and_report 12.output.fa 5.expected.fa 11
-

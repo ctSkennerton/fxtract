@@ -83,6 +83,7 @@ Options opts;
 FileManager manager;
 
 static int matched_records = 0;
+MEMREF *pattv;
 
 void printSingle(Fx ** mate, FILE * out ) {
     if(mate != NULL) {
@@ -249,13 +250,27 @@ void tokenizePatternFile(std::ifstream& in) {
     }
 }
 
-static int on_match(int strnum, const char *textp, void const * context) {
-    ReadPair * pair = (ReadPair *) context;
+static int on_match(FILE * out, ReadPair& pair) {
+    if(opts.c_flag) {
+        ++matched_records;
+        return 0;
+    }
+
+    pair.print(out);
+    return  0;
+}
+
+static int on_match2(int strnum, const char *textp, void const * context) {
+    if(opts.v_flag) {
+        return 1;
+    }
     if(opts.c_flag) {
         ++matched_records;
         return 1;
     }
-    std::cout << *pair;
+    ReadPair * pair = (ReadPair *) context;
+    FILE * out = manager.find(pattv[strnum].ptr);
+    pair->print(out);
     return  1;
 }
 
@@ -268,7 +283,7 @@ static std::string * prepare_data(Options & opts, Fx& read) {
       return &read.qual;
     }
   } else if (opts.C_flag) {
-    return & read.comment;
+    return &read.comment;
   }
 
   return &read.seq;
@@ -286,7 +301,7 @@ int hash_search(Fxstream& stream) {
         FILE * out = manager.find(*data);
         if(out != NULL) {
             if(! opts.v_flag) {
-                on_match(0, NULL, &pair);
+                on_match(out,  pair);
             }
 
         } else {
@@ -295,12 +310,12 @@ int hash_search(Fxstream& stream) {
                 data = prepare_data(opts, pair.second);
                 FILE * out = manager.find(*data);
                 if(out != NULL) {
-                    on_match(0, NULL, &pair);
+                    on_match(out, pair);
                 } else if (opts.v_flag) {
-                    on_match(0, NULL, &pair);
+                    on_match(stdout, pair);
                 }
             } else if (opts.v_flag) {
-                on_match(0, NULL, &pair);
+                on_match(stdout, pair);
             }
         }
         pair.clear();
@@ -329,7 +344,7 @@ int multipattern_search(Fxstream& stream) {
     concstr[conc.size()-1] = '\0';
     int npatts;
 
-    MEMREF *pattv =  refsplit(concstr, '\n', &npatts);
+    pattv = refsplit(concstr, '\n', &npatts);
 
     SSEARCH *ssp = ssearch_create(pattv, npatts);
 
@@ -364,7 +379,7 @@ int multipattern_search(Fxstream& stream) {
             data.ptr = pair.first.seq.c_str();
             data.len = (size_t)pair.first.len;
         }
-        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, &pair);
+        int ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match2, &pair);
         if(! ret) {
             // read one did not have a match check read 2 if it exists
             if(!pair.second.empty()) {
@@ -384,12 +399,12 @@ int multipattern_search(Fxstream& stream) {
                     data.ptr = pair.second.seq.c_str();
                     data.len = (size_t)pair.second.len;
                 }
-                ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match, &pair);
+                ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match2, &pair);
                 if(!ret && opts.v_flag) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
                 }
             } else if (opts.v_flag) {
-                on_match(0,NULL,&pair);
+                on_match(stdout, pair);
             }
         }
         pair.clear();
@@ -424,7 +439,7 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
                 data = prepare_data(opts, pair.second);
                 ret = regexec(pxr, data->c_str(), 0, NULL, 0);
                 if(ret == REG_NOMATCH && opts.v_flag) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
                 }
                 if(ret != (REG_NOMATCH | 0)) {
                     char * errorbuf = get_regerror(ret, pxr);
@@ -432,11 +447,11 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
                     free(errorbuf);
                     return 1;
                 } else if(ret == 0) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
 
                 }
             } else if (opts.v_flag) {
-                on_match(0,NULL,&pair);
+                on_match(stdout, pair);
             }
         } else if(ret != 0) {
             char * errorbuf = get_regerror(ret, pxr);
@@ -444,7 +459,7 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
             free(errorbuf);
             return 1;
         } else if(! opts.v_flag ){
-            on_match(0,NULL,&pair);
+            on_match(stdout, pair);
 
         }
         pair.clear();
@@ -466,15 +481,15 @@ int pcre_search(Fxstream& stream, pcre * pxr) {
                 data = prepare_data(opts, pair.second);
                 ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
                 } else if(opts.v_flag) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
                 }
             } else if(opts.v_flag) {
-                on_match(0,NULL,&pair);
+                on_match(stdout, pair);
             }
         } else if (!opts.v_flag){
-            on_match(0,NULL,&pair);
+            on_match(stdout, pair);
         }
         pair.clear();
     }
@@ -495,13 +510,13 @@ int simple_string_search(Fxstream& stream, const char * pattern) {
                 data = prepare_data(opts, pair.second);
                 ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
-                    on_match(0,NULL,&pair);
+                    on_match(stdout, pair);
                 }
             } else if (opts.v_flag) {
-                on_match(0,NULL,&pair);
+                on_match(stdout, pair);
             }
         } else if (!opts.v_flag) {
-            on_match(0,NULL,&pair);
+            on_match(stdout, pair);
         }
         pair.clear();
     }

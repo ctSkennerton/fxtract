@@ -37,6 +37,23 @@ struct Fx {
         seq.clear();
         qual.clear();
     }
+    void print(FILE * out) {
+        if(!empty()) {
+            if(isFasta()) {
+                fprintf(out, ">%s", name.c_str());
+                if(!comment.empty()) {
+                    fprintf(out, "%s",comment.c_str());
+                }
+                fprintf(out, "\n%s\n", seq.c_str());
+            } else {
+                fprintf(out, "@%s", name.c_str());
+                if(!comment.empty()) {
+                    fprintf(out, "%s", comment.c_str());
+                }
+                fprintf(out, "\n%s+\n%s\n", seq.c_str(), qual.c_str());
+            }
+        }
+    }
 
 };
 
@@ -50,7 +67,14 @@ struct ReadPair {
         first.clear();
         second.clear();
     }
+
+    void print(FILE * out) {
+        first.print(out);
+        second.print(out);
+    }
 };
+
+
 
 inline std::ostream& operator<<(std::ostream& out, Fx& mate) {
     if(mate.empty()) {
