@@ -7,6 +7,9 @@ PREFIX := /usr/local/bin
 LIBZ := 1
 LIBBZ2 := 1
 
+PACKAGE_VERSION = 1.1
+PACKAGE_DATE = "2015-02-19"
+
 ifndef NO_PCRE
 	LIBS += -lpcre
 	CFLAGS += -DHAVE_PCRE
@@ -22,6 +25,22 @@ endif
 
 include $(util)/GNUmakefile
 
+ifneq "$(wildcard .git)" ""
+PACKAGE_VERSION := $(shell git log -n 1 --pretty="%h" )
+PACKAGE_DATE := $(shell git log -n 1 --pretty="%ai" )
+
+# Force version.h to be remade if $(PACKAGE_VERSION) has changed.
+version.h: $(if $(wildcard version.h),$(if $(findstring "$(PACKAGE_VERSION)",$(shell cat version.h)),,force))
+endif
+
+version.h:
+	echo '#define PACKAGE_VERSION "$(PACKAGE_VERSION)"' > $@
+	echo '#define PACKAGE_DATE "$(PACKAGE_DATE)"' >> $@
+
+force:
+
+.PHONY: force
+
 all: $(EXECUTABLE)
 
 install: $(EXECUTABLE)
@@ -31,5 +50,8 @@ test: $(EXECUTABLE)
 	cd test/
 	./run.sh
 
-$(EXECUTABLE): $(OBJECTS) $(util)/libmsutil.a
-	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $^ $(LIBS)
+main.o: main.cpp version.h
+	$(CXX) $(CFLAGS) -c -o $@ $<
+
+$(EXECUTABLE): version.h $(OBJECTS) $(util)/libmsutil.a
+	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS)
