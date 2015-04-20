@@ -118,13 +118,10 @@ void FileManager::add(std::string pattern, std::string filename) {
         // the pattern is known
         // check to see if the filename is also known
         fp_iter = filenameMapping.find(filename);
-        if (fp_iter == filenameMapping.end() || filename != fp_iter->first) {
+        if (fp_iter != filenameMapping.end() && filename != fp_iter->first) {
             // same pattern different filename
             // error in mapping file
-            fprintf(stderr, "[WARNING]: The pattern \"%s\" is associated with both \"%s\" and \"%s\"\n",
-                    pattern.c_str(),
-                    filename.c_str(),
-                    fp_iter->first.c_str());
+            std::cerr << "[WARNING]: The pattern "<<pattern<<" is associated with both "<<filename<<" and "<<fp_iter->first<<std::endl;
         }
     }
 }
