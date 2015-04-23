@@ -1,4 +1,4 @@
-LIBS := -lboost_iostreams
+LIBS :=
 EXECUTABLE := fxtract
 util := util
 OBJECTS := main.o fileManager.o fx.o util.o
@@ -6,6 +6,7 @@ PREFIX := /usr/local/bin
 
 LIBZ := 1
 LIBBZ2 := 1
+BOOST_IOSTREAMS := -lboost_iostreams
 
 PACKAGE_VERSION = 1.1
 PACKAGE_DATE = "2015-02-19"
@@ -54,4 +55,5 @@ main.o: main.cpp version.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 $(EXECUTABLE): version.h $(OBJECTS) $(util)/libmsutil.a
-	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS)
+	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS) $(BOOST_IOSTREAMS)
+
