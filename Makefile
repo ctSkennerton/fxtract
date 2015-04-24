@@ -27,7 +27,7 @@ endif
 include $(util)/GNUmakefile
 
 ifneq "$(wildcard .git)" ""
-PACKAGE_VERSION := $(shell git log -n 1 --pretty="%h" )
+PACKAGE_VERSION := $(shell git describe --always)
 PACKAGE_DATE := $(shell git log -n 1 --pretty="%ai" )
 
 # Force version.h to be remade if $(PACKAGE_VERSION) has changed.
