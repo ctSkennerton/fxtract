@@ -7,6 +7,7 @@ PREFIX := /usr/local/bin
 LIBZ := 1
 LIBBZ2 := 1
 BOOST_IOSTREAMS := -lboost_iostreams
+SYSTEM_NAME := $(shell uname -s)
 
 PACKAGE_VERSION = 1.1
 PACKAGE_DATE = "2015-02-19"
@@ -40,9 +41,11 @@ version.h:
 
 force:
 
-.PHONY: force
+.PHONY: force static
 
 all: $(EXECUTABLE)
+
+static: $(EXECUTABLE)$(PACKAGE_VERSION)-$(SYSTEM_NAME)-64bit-static
 
 install: $(EXECUTABLE)
 	$(INSTALL) -dc $< $(PREFIX)
@@ -56,4 +59,7 @@ main.o: main.cpp version.h
 
 $(EXECUTABLE): version.h $(OBJECTS) $(util)/libmsutil.a
 	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS) $(BOOST_IOSTREAMS)
+
+$(EXECUTABLE)$(PACKAGE_VERSION)-Linux-64bit-static: version.h $(OBJECTS) $(util)/libmsutil.a
+	$(CXX) $(CFLAGS) -static -o $@ $(OBJECTS) $(util)/libmsutil.a $(LIBS) $(BOOST_IOSTREAMS)
 
