@@ -9,8 +9,11 @@ hash lookups or multi-pattern searching as required. By default
 will look in the sequence of each record but can be told to look
 in the header, comment or quality sections of a record.
 
-Dependencies
-------------
+## Installation with pre-compiled binaries
+Precompiled binaries are [available](https://github.com/ctSkennerton/fxtract/releases).
+
+## Install from source
+Installing from source requires a few shared libraries.
 The boost iostream library is required and by proxy both [zlib](http://www.zlib.net/)
 and [bzip2](http://www.bzip.org/)
 libraries are required to be installed on your system; PCRE is an optional dependency.
@@ -18,10 +21,7 @@ If you do not have the boost iostream library installed (it does need to be
 installed as it contains compiled components) follow the instructions on the
 [Boost website](http://www.boost.org/doc/libs/1_55_0/libs/iostreams/doc/index.html).
 
-
-Install
--------
-Make sure the dependencies above are installed and then
+To compile, make sure the dependencies above are installed and then
 hopefully the following will work for you (if not open an
 [issue](https://github.com/ctSkennerton/fxtract/issues))
 ```
