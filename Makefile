@@ -1,4 +1,3 @@
-LIBS :=
 EXECUTABLE := fxtract
 util := util
 OBJECTS := main.o fileManager.o fx.o util.o
@@ -6,23 +5,32 @@ PREFIX := /usr/local/bin
 
 LIBZ := 1
 LIBBZ2 := 1
-BOOST_IOSTREAMS := -lboost_iostreams
+
+BOOST_IOSTREAMS_PATH := -lboost_iostreams
+PCRE_PATH := -lpcre
+LIBZ_PATH := -lz
+LIBBZ2_PATH := -lbz2
+
+LIBS := $(BOOST_IOSTREAMS_PATH)
+
 SYSTEM_NAME := $(shell uname -s)
 
 PACKAGE_VERSION = 1.1
 PACKAGE_DATE = "2015-02-19"
 
 ifndef NO_PCRE
-	LIBS += -lpcre
+	LIBS += $(PCRE_PATH)
 	CFLAGS += -DHAVE_PCRE
 endif
 
 ifeq ($(LIBZ), 1)
 	CFLAGS += -DHAVE_LIBZ
+	LIBS += $(LIBZ_PATH)
 endif
 
 ifeq ($(LIBBZ2), 1)
 	CFLAGS += -DHAVE_LIBBZ2
+	LIBS += $(LIBBZ2_PATH)
 endif
 
 include $(util)/GNUmakefile
@@ -58,8 +66,8 @@ main.o: main.cpp version.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
 $(EXECUTABLE): version.h $(OBJECTS) $(util)/libmsutil.a
-	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS) $(BOOST_IOSTREAMS)
+	$(CXX) $(CFLAGS) -o $(EXECUTABLE) $(OBJECTS) $(util)/libmsutil.a $(LIBS)
 
-$(EXECUTABLE)$(PACKAGE_VERSION)-Linux-64bit-static: version.h $(OBJECTS) $(util)/libmsutil.a
-	$(CXX) $(CFLAGS) -static -o $@ $(OBJECTS) $(util)/libmsutil.a $(LIBS) $(BOOST_IOSTREAMS)
+$(EXECUTABLE)$(PACKAGE_VERSION)-$(SYSTEM_NAME)-64bit-static: version.h $(OBJECTS) $(util)/libmsutil.a
+	$(CXX) $(CFLAGS) -static -o $@ $(OBJECTS) $(util)/libmsutil.a $(LIBS)
 
