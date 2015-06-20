@@ -58,9 +58,8 @@ static: $(EXECUTABLE)$(PACKAGE_VERSION)-$(SYSTEM_NAME)-64bit-static
 install: $(EXECUTABLE)
 	$(INSTALL) -dc $< $(PREFIX)
 
-test: $(EXECUTABLE)
-	cd test/
-	./run.sh
+test_fxtract: $(EXECUTABLE)
+	cd test/ && ./run.sh
 
 main.o: main.cpp version.h
 	$(CXX) $(CFLAGS) -c -o $@ $<

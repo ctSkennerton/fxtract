@@ -36,8 +36,7 @@ $ make NO_PCRE=1
 ```
 If you want to check to see if it's installed properly run the tests by
 ```
-$ cd test
-$ bash run.sh
+$ make test_fxtract
 ```
 and see if they pass, I hope that they do.
 

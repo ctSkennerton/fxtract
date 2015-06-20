@@ -1,9 +1,12 @@
 #!/bin/bash
 
+failed_any=0
+
 diff_output_and_report() {
   diff $1 $2 >/dev/null
   if [ $? != 0 ]; then
       printf "\t\x1b[31m%s\x1b[0m\n" "FAILED test $3!"
+      failed_any=1
   else
       printf "\tPASSED test $3!\n"
   fi
@@ -18,6 +21,7 @@ diff_output_and_report2() {
       diff $2 $4 >/dev/null
       if [ $? != 0 ]; then
           printf "\t\x1b[31m%s\x1b[0m\n" "FAILED test $5!"
+	  failed_any=1
       else
           printf "\tPASSED test $5!\n"
       fi
@@ -123,3 +127,5 @@ diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expecte
 
 ../fxtract -Hf headers2.txt 1.fa
 diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expected 12b
+
+exit $failed_any
