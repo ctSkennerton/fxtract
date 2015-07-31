@@ -6,8 +6,17 @@
 #include <cstdio>
 #include "fx.h"
 
+Fxstream::Fxstream()
+{
+    in1 = NULL;
+    in2 = NULL;
+    ks1 = NULL;
+    ks2 = NULL;
+}
+
 Fxstream::~Fxstream()
 {
+    close();
     if(ks1 != NULL)
     {
         delete ks1;

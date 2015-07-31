@@ -548,7 +548,6 @@ int main(int argc, char * argv[])
         }
         if(stream_state != 0) {
             fprintf(stderr, "Failed to open stream\n");
-            stream.close();
             return 1;
         }
 
@@ -566,12 +565,10 @@ int main(int argc, char * argv[])
                 char * errorbuf = get_regerror(ret, &px_regex);
                 fprintf(stderr, "%s\n", errorbuf);
                 free(errorbuf);
-                stream.close();
                 return 1;
             }
             ret = posix_regex_search(stream, &px_regex);
             regfree(&px_regex);
-            stream.close();
         }
 #ifdef HAVE_PCRE
         else if (opts.P_flag) {
@@ -594,8 +591,6 @@ int main(int argc, char * argv[])
 
             pcre_search(stream, re);
             pcre_free(re);
-            stream.close();
-
         }
 #endif
         else if(opts.X_flag) {
@@ -608,7 +603,6 @@ int main(int argc, char * argv[])
             simple_string_search(stream, pattern.c_str());
         }
 
-        stream.close();
         if(opts.c_flag) {
             printf("%d\n", matched_records);
         }

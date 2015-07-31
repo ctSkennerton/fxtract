@@ -27,11 +27,7 @@ inline std::ostream& operator<<(std::ostream& out, ReadPair& pair) {
 
 struct Fxstream {
 
-    gzFile in1;
-    gzFile in2;
-    bool   interleaved;
-
-    Fxstream() : ks1(NULL), ks2(NULL){}
+    Fxstream();
     ~Fxstream();
     int open(const char * file1, const char * file2, bool interleaved);
     int close();
@@ -41,6 +37,9 @@ struct Fxstream {
     FunctorZlib gzr;
     kstream<gzFile, FunctorZlib> * ks1;
     kstream<gzFile, FunctorZlib> * ks2;
+    gzFile in1;
+    gzFile in2;
+    bool   interleaved;
 
 };
 

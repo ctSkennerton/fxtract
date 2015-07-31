@@ -100,22 +100,12 @@ print_test_header "compressed files"
 gzip 8.fa
 ../fxtract -zH 1101:11128:12710 8.fa.gz >8.output.fa
 diff_output_and_report 8.output.fa 8.expected.fa 10a
-
 gunzip 8.fa.gz
-bzip2 8.fa
-../fxtract -Hj 1101:11128:12710 8.fa.bz2 >8.output.fa
-diff_output_and_report 8.output.fa 8.expected.fa 10b
-bunzip2 8.fa.bz2
 
 gzip 4_1.fa 4_2.fa
 ../fxtract -Hz "HSQ868392H08B7ADXX:2:1112:8977:35114" 4_1.fa.gz 4_2.fa.gz > 4.output.fa
 diff_output_and_report 4.output.fa 4.expected.fa 10c
 gunzip 4_1.fa.gz 4_2.fa.gz
-
-bzip2 4_1.fa 4_2.fa
-../fxtract -Hj "HSQ868392H08B7ADXX:2:1112:8977:35114" 4_1.fa.bz2 4_2.fa.bz2 > 4.output.fa
-diff_output_and_report 4.output.fa 4.expected.fa 10d
-bunzip2 4_1.fa.bz2 4_2.fa.bz2
 
 print_test_header "multiple files"
 ../fxtract -CS Accumulibacter 1.fa 11.fa 5.fa > 12.output.fa
