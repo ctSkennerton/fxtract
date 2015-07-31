@@ -1,17 +1,14 @@
 EXECUTABLE := fxtract
 util := util
-OBJECTS := main.o fileManager.o fx.o util.o
+OBJECTS := main.o fileManager.o fx.o util.o kseq.o
 PREFIX := /usr/local/bin
 
 LIBZ := 1
-LIBBZ2 := 1
 
-BOOST_IOSTREAMS_PATH := -lboost_iostreams
 PCRE_PATH := -lpcre
 LIBZ_PATH := -lz
-LIBBZ2_PATH := -lbz2
 
-LIBS := $(BOOST_IOSTREAMS_PATH)
+LIBS :=
 
 SYSTEM_NAME := $(shell uname -s)
 
@@ -26,11 +23,6 @@ endif
 ifeq ($(LIBZ), 1)
 	CFLAGS += -DHAVE_LIBZ
 	LIBS += $(LIBZ_PATH)
-endif
-
-ifeq ($(LIBBZ2), 1)
-	CFLAGS += -DHAVE_LIBBZ2
-	LIBS += $(LIBBZ2_PATH)
 endif
 
 include $(util)/GNUmakefile
@@ -58,8 +50,8 @@ static: $(EXECUTABLE)$(PACKAGE_VERSION)-$(SYSTEM_NAME)-64bit-static
 install: $(EXECUTABLE)
 	$(INSTALL) -dc $< $(PREFIX)
 
-test_fxtract: $(EXECUTABLE)
-	cd test/ && ./run.sh
+fxtract_test: $(EXECUTABLE)
+	cd $@ && ./run.sh
 
 main.o: main.cpp version.h
 	$(CXX) $(CFLAGS) -c -o $@ $<
