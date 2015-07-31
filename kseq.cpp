@@ -34,7 +34,7 @@ void kseq::print(FILE * out) {
     if(isFasta()) {
       fprintf(out, ">%s", name.c_str());
       if(!comment.empty()) {
-        fprintf(out, "%s",comment.c_str());
+        fprintf(out, " %s",comment.c_str());
       }
       fprintf(out, "\n%s\n", seq.c_str());
     } else {
@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& out, kseq& mate) {
     } else {
         out << "@"<<mate.name;
         if(!mate.comment.empty())
-            out<<mate.comment;
+            out<<" "<<mate.comment;
         out<<"\n"<<mate.seq<<"\n+\n"<<mate.qual<<"\n";
     }
     return out;
