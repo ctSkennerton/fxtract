@@ -28,6 +28,7 @@ Fxstream::~Fxstream()
 }
 
 int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
+    fileName1 = file1;
     in1 = gzopen(file1, "r");
     ks1 = new kstream<gzFile, FunctorZlib>(in1, gzr);
 
@@ -35,6 +36,7 @@ int Fxstream::open(const char * file1, const char * file2, bool interleaved) {
         fprintf(stderr, "A second file cannot be given if the interleaved flag is set\n");
         return 1;
     } else if (file2 != NULL) {
+        fileName2 = file2;
         in2 = gzopen(file2, "r");
         ks2 = new kstream<gzFile, FunctorZlib>(in2, gzr);
     }

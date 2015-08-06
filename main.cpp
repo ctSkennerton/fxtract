@@ -53,6 +53,8 @@ struct Options
     bool   two_flag;
     bool   S_flag;
     bool   c_flag;
+    bool   l_flag;
+    bool   L_flag;
 
     Options() : H_flag(false),
                 Q_flag(false),
@@ -70,7 +72,9 @@ struct Options
                 one_flag(false),
                 two_flag(false),
                 S_flag(false),
-                c_flag(false)
+                c_flag(false),
+                l_flag(false),
+                L_flag(false)
     {}
 };
 
@@ -103,12 +107,14 @@ static const char usage_msg[] =\
     "\t-v           Inverse the match criteria. Print pairs that do not contain matches\n"
     "\t-c           Print only the count of reads (or pairs) that were found\n"
     "\t-f <file>    File containing patterns, one per line\n"
+    "\t-l           Print file names that contain matches\n"
+    //"\t-L           Print file names that contain no matches\n"
     "\t-h           Print this help\n"
     "\t-V           Print version\n";
 
 int parseOptions(int argc,  char * argv[]) {
     int c;
-    while ((c = getopt(argc, argv, "HhCcIf:zjqVvrQGEPX12S")) != -1 ) {
+    while ((c = getopt(argc, argv, "HhCcIf:zjqVvrQGEPX12SlL")) != -1 ) {
         switch (c) {
             case 'c':
                 opts.c_flag = true;
@@ -148,6 +154,12 @@ int parseOptions(int argc,  char * argv[]) {
                 break;
             case 'H':
                 opts.H_flag = true;
+                break;
+            case 'l':
+                opts.l_flag = true;
+                break;
+            case 'L':
+                opts.L_flag = true;
                 break;
             case 'C':
                 opts.C_flag = true;
@@ -217,15 +229,30 @@ void tokenizePatternFile(std::ifstream& in) {
                 break;
             case 1:
                 manager.add(fields[0]);
+                if(opts.r_flag) {
+                    std::string rcpattern = fields[0];
+                    reverseComplement(rcpattern);
+                    manager.add(rcpattern);
+                }
                 break;
             default:
                 manager.add(fields[0], fields[1]);
+                if(opts.r_flag) {
+                    std::string rcpattern = fields[0];
+                    reverseComplement(rcpattern);
+                    manager.add(rcpattern, fields[1]);
+                }
                 break;
         }
     }
 }
 
 static int on_match(FILE * out, ReadPair& pair) {
+    if(opts.l_flag)
+    {
+        return 1;
+    }
+
     if(opts.c_flag) {
         ++matched_records;
         return 0;
@@ -237,6 +264,10 @@ static int on_match(FILE * out, ReadPair& pair) {
 
 static int on_match2(int strnum, const char *textp, void const * context) {
     if(opts.v_flag) {
+        return 1;
+    }
+    if(opts.l_flag)
+    {
         return 1;
     }
     if(opts.c_flag) {
@@ -276,7 +307,12 @@ int hash_search(Fxstream& stream) {
         FILE * out = manager.find(*data);
         if(out != NULL) {
             if(! opts.v_flag) {
-                on_match(out,  pair);
+                if(on_match(out,  pair) == 1)
+                {
+                    // the l flag has been set, print the file name
+                    printf("%s\n", stream.getFile1().c_str());
+                    return 0;
+                }
             }
 
         } else {
@@ -285,7 +321,12 @@ int hash_search(Fxstream& stream) {
                 data = prepare_data(opts, pair.second);
                 FILE * out = manager.find(*data);
                 if(out != NULL) {
-                    on_match(out, pair);
+                    if(on_match(out,  pair) == 1)
+                    {
+                        // the l flag has been set, print the file name
+                        printf("%s\n", stream.getFile2().c_str());
+                        return 0;
+                    }
                 } else if (opts.v_flag) {
                     on_match(stdout, pair);
                 }
@@ -377,10 +418,21 @@ int multipattern_search(Fxstream& stream) {
                 ret = ssearch_scan(ssp, data, (SSEARCH_CB)on_match2, &pair);
                 if(!ret && opts.v_flag) {
                     on_match(stdout, pair);
+                } else if (opts.l_flag)
+                {
+                    // read 2 matched and the l flag is in place, print file name
+                    printf("%s\n", stream.getFile2().c_str());
+                    return 0;
+
                 }
             } else if (opts.v_flag) {
                 on_match(stdout, pair);
             }
+        } else if (opts.l_flag)
+        {
+            // read 1 matched and l option in place, print file name
+            printf("%s\n", stream.getFile1().c_str());
+            return 0;
         }
         pair.clear();
     }
@@ -422,7 +474,12 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
                     free(errorbuf);
                     return 1;
                 } else if(ret == 0) {
-                    on_match(stdout, pair);
+                    if(on_match(stdout, pair) == 1)
+                    {
+                        // the l flag has been set, print the file name
+                        printf("%s\n", stream.getFile2().c_str());
+                        return 0;
+                    }
 
                 }
             } else if (opts.v_flag) {
@@ -434,7 +491,12 @@ int posix_regex_search(Fxstream& stream, regex_t * pxr) {
             free(errorbuf);
             return 1;
         } else if(! opts.v_flag ){
-            on_match(stdout, pair);
+            if(on_match(stdout, pair) == 1)
+            {
+                // the l flag has been set, print the file name
+                printf("%s\n", stream.getFile1().c_str());
+                return 0;
+            }
 
         }
         pair.clear();
@@ -456,7 +518,13 @@ int pcre_search(Fxstream& stream, pcre * pxr) {
                 data = prepare_data(opts, pair.second);
                 ret = pcre_exec(pxr, NULL, data->c_str(), data->size(), 0, 0, ovector, 30);
                 if(ret == 1) {
-                    on_match(stdout, pair);
+                    // second read had a match
+                    if(on_match(stdout, pair) == 1)
+                    {
+                        // the l flag has been set, print the file name
+                        printf("%s\n", stream.getFile2().c_str());
+                        return 0;
+                    }
                 } else if(opts.v_flag) {
                     on_match(stdout, pair);
                 }
@@ -464,7 +532,14 @@ int pcre_search(Fxstream& stream, pcre * pxr) {
                 on_match(stdout, pair);
             }
         } else if (!opts.v_flag){
-            on_match(stdout, pair);
+            // read one matched
+            if(on_match(stdout, pair) == 1)
+            {
+                // the l flag has been set, print the file name
+                printf("%s\n", stream.getFile1().c_str());
+                return 0;
+            }
+
         }
         pair.clear();
     }
@@ -485,13 +560,25 @@ int simple_string_search(Fxstream& stream, const char * pattern) {
                 data = prepare_data(opts, pair.second);
                 ret = strstr(data->c_str(), pattern);
                 if(ret != NULL) {
-                    on_match(stdout, pair);
+                    // the second read has a match
+                    if(on_match(stdout, pair) == 1)
+                    {
+                        // the l flag has been set, print the file name
+                        printf("%s\n", stream.getFile2().c_str());
+                        return 0;
+                    }
                 }
             } else if (opts.v_flag) {
                 on_match(stdout, pair);
             }
         } else if (!opts.v_flag) {
-            on_match(stdout, pair);
+            // the first read has a match
+            if(on_match(stdout, pair) == 1)
+            {
+                // the l flag has been set, print the file name
+                printf("%s\n", stream.getFile1().c_str());
+                return 0;
+            }
         }
         pair.clear();
     }
@@ -542,6 +629,7 @@ int main(int argc, char * argv[])
         if(! opts.S_flag && ! opts.I_flag) {
             // two read files
             stream_state = stream.open(argv[opt_idx], argv[opt_idx+1], opts.I_flag);
+
         } else {
             // one read file
             stream_state = stream.open(argv[opt_idx], NULL, opts.I_flag);

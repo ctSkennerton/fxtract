@@ -57,6 +57,10 @@ diff_output_and_report 2.output.fa 2.expected.fa 2c
 diff_output_and_report 2.output.fa 2.expected.fa 2d
 ../fxtract -HX "HISEQ2000:55:C0JRTACXX:2:1101:11128:12710_1:N:0:CTTGTAAT" 1.fa > 2.output.fa
 diff_output_and_report 2.output.fa 2.expected.fa 2e
+../fxtract -HX 1660334 12.fa >2f.output.fa
+diff_output_and_report 2f.output.fa 12.expected.fa 2f
+../fxtract -rHX 1660334 12.fa >2g.output.fa
+diff_output_and_report 2g.output.fa 2g.expected.fa 2g
 
 
 print_test_header "multipattern search"

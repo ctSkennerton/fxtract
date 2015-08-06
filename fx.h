@@ -33,12 +33,22 @@ struct Fxstream {
     int close();
     int read (kseq& read1, kseq& read2);
     int read (ReadPair& pair);
+    std::string getFile1()
+    {
+        return fileName1;
+    }
+    std::string getFile2()
+    {
+        return fileName2;
+    }
   private:
     FunctorZlib gzr;
     kstream<gzFile, FunctorZlib> * ks1;
     kstream<gzFile, FunctorZlib> * ks2;
     gzFile in1;
     gzFile in2;
+    std::string fileName1;
+    std::string fileName2;
     bool   interleaved;
 
 };

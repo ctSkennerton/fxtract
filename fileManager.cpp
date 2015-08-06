@@ -80,11 +80,8 @@ void FileManager::add(std::string pattern, std::string filename) {
     std::map<std::string, int>::iterator fp_iter;
     if(pm_iter == patternMapping.end()) {
 
-        std::string rc_pattern = pattern;
-        reverseComplement(rc_pattern);
         // add in the pattern key to the hash
         patternMapping[pattern] = -1;
-        patternMapping[rc_pattern] = -1;
 
         // now check to see if the filename has been seen before
         fp_iter = filenameMapping.find(filename);
@@ -97,8 +94,6 @@ void FileManager::add(std::string pattern, std::string filename) {
             // after we push on the filewrapper below the index will match
             int n = files.size();
             patternMapping[pattern] = n;
-            patternMapping[rc_pattern] = n;
-
             filenameMapping[filename] = n;
 
             fw->filename = filename;
@@ -109,10 +104,8 @@ void FileManager::add(std::string pattern, std::string filename) {
             // the file has been seen before but the pattern hasn't
             // so we need to associate the new pattern with the file
             patternMapping[pattern] = fp_iter->second;
-            patternMapping[rc_pattern] = fp_iter->second;
         }
         assert(patternMapping[pattern] != -1);
-        assert(patternMapping[rc_pattern] != -1);
 
     } else {
         // the pattern is known
@@ -135,11 +128,8 @@ void FileManager::add(std::string pattern) {
 
     if(pm_iter == patternMapping.end()) {
         // add in the pattern key to the hash
-      std::string rc_pattern = pattern;
-        reverseComplement(rc_pattern);
 
         patternMapping[pattern] = -1;
-        patternMapping[rc_pattern] = -1;
         fp_iter = filenameMapping.find("");
         if (fp_iter == filenameMapping.end()) {
             // it hasn't so make a new filewrapper and associate the
@@ -149,7 +139,6 @@ void FileManager::add(std::string pattern) {
             // after we push on the filewrapper below the index will match
             int n = files.size();
             patternMapping[pattern] = n;
-            patternMapping[rc_pattern] = n;
             filenameMapping[""] = n;
 
             fw->filename = "";
@@ -162,10 +151,8 @@ void FileManager::add(std::string pattern) {
             // the file has been seen before but the pattern hasn't
             // so we need to associate the new pattern with the file
             patternMapping[pattern] = filenameMapping[""];
-            patternMapping[rc_pattern] = filenameMapping[""];
         }
         assert(patternMapping[pattern] != -1);
-        assert(patternMapping[rc_pattern] != -1);
     } else {
         // the pattern is known
         // check to see if the filename is also known
