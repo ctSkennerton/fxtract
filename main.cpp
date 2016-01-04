@@ -44,9 +44,7 @@ struct Options
     bool   X_flag;
     bool   r_flag;
     bool   I_flag;
-#ifdef HAVE_PCRE
     bool   P_flag;
-#endif
     char * f_flag;
     bool   v_flag;
     bool   one_flag;
@@ -64,9 +62,7 @@ struct Options
                 X_flag(false),
                 r_flag(false),
                 I_flag(false),
-#ifdef HAVE_PCRE
                 P_flag(false),
-#endif
                 f_flag(NULL),
                 v_flag(false),
                 one_flag(false),
@@ -99,7 +95,7 @@ static const char usage_msg[] =\
     "\t-P           pattern is a perl compatable regular expression (default: literal substring)\n"
 #endif
     "\t-X           pattern exactly matches the whole string (default: literal substring)\n"
-    "\t-r           Match the reverse complement of a literal pattern\n"
+    "\t-r           Match the reverse complement of a literal pattern. Not compatible with regular expressions\n"
     "\t-I           The read file is interleaved (both pairs in a single file)\n"
     "\t-S           The files do not contain pairs. Allows for multiple files to be given on the command line\n"
     //"\t-1           Print only read 1 whether there was a match in read 1 or read 2\n"
@@ -185,6 +181,19 @@ int parseOptions(int argc,  char * argv[]) {
                 usage(usage_msg);
                 break;
         }
+    }
+    if((opts.P_flag | opts.G_flag | opts.E_flag) & opts.r_flag) {
+        fprintf(stderr,
+            "\n\nERROR: Searching for the reverse complement of a regular\n"
+            "expression does not work. If your pattern is a litteral string just\n"
+            "drop"
+#ifdef HAVE_PCRE
+            "the P, "
+#endif
+            "G or E flags. If your pattern is a regular expression\n"
+            "you will have to manually input it as either a separate command or\n"
+            "using alternation in the regular expression\n\n");
+            usage(usage_msg);
     }
     return optind;
 }
@@ -546,38 +555,95 @@ int pcre_search(Fxstream& stream, pcre * pxr) {
     return 0;
 }
 #endif
+std::string prepare_revcomp(const char * pattern) {
+    std::string rcpattern;
+    if(opts.r_flag ^ (opts.H_flag | opts.Q_flag | opts.C_flag))
+    {
+        rcpattern = pattern;
+        reverseComplement(rcpattern);
+    }
+    return rcpattern;
+}
+
+// returns true if the pattern matches the data
+bool simple_string_search_core(const char * pattern, const char * rcpattern, const char * haystack)
+
+{
+    const char * ret = strstr(haystack, pattern);
+    if(ret == NULL)
+    {
+        if(rcpattern != NULL)
+        {
+            ret = strstr(haystack, rcpattern);
+            if(ret != NULL)
+            {
+                return true;
+            }
+        }
+    }
+    else
+    {
+        return true;
+    }
+    return false;
+}
+
+bool after_match()
+{
+    return true;
+
+}
 
 int simple_string_search(Fxstream& stream, const char * pattern) {
     ReadPair pair;
-
+    std::string rcpattern = prepare_revcomp(pattern);
     while(stream.read(pair) == 0) {
+        bool read_matched = false;
         std::string * data = prepare_data(opts, pair.first);
+        if(rcpattern.empty()) {
+            read_matched = simple_string_search_core(pattern, NULL, data->c_str());
+        } else {
+            read_matched = simple_string_search_core(pattern, rcpattern.c_str(), data->c_str());
+        }
 
-        const char * ret = strstr(data->c_str(), pattern);
-        if(ret == NULL){
-            // read one did not have a match check read 2 if it exists
-            if(!pair.second.empty()) {
-                data = prepare_data(opts, pair.second);
-                ret = strstr(data->c_str(), pattern);
-                if(ret != NULL) {
-                    // the second read has a match
-                    if(on_match(stdout, pair) == 1)
-                    {
-                        // the l flag has been set, print the file name
-                        printf("%s\n", stream.getFile2().c_str());
-                        return 0;
+        if(read_matched) {
+            if(! opts.v_flag) {
+                // the first read has a match
+                if(on_match(stdout, pair) == 1) {
+                    // the l flag has been set, print the file name
+                    printf("%s\n", stream.getFile1().c_str());
+                    return 0;
+                }
+            }
+        } else {
+            if(opts.v_flag) {
+                on_match(stdout, pair);
+            } else {
+                // read one did not have a match check read 2 if it exists
+                if(!pair.second.empty()) {
+                    data = prepare_data(opts, pair.second);
+                    if(rcpattern.empty()) {
+                        read_matched = simple_string_search_core(pattern, NULL, data->c_str());
+
+                    } else {
+                        read_matched = simple_string_search_core(pattern, rcpattern.c_str(), data->c_str());
+                    }
+
+                    if(read_matched) {
+                        if(! opts.v_flag) {
+                            // the first read has a match
+                            if(on_match(stdout, pair) == 1) {
+                                // the l flag has been set, print the file name
+                                printf("%s\n", stream.getFile1().c_str());
+                                return 0;
+                            }
+                        }
+                    } else {
+                        if(opts.v_flag) {
+                            on_match(stdout, pair);
+                        }
                     }
                 }
-            } else if (opts.v_flag) {
-                on_match(stdout, pair);
-            }
-        } else if (!opts.v_flag) {
-            // the first read has a match
-            if(on_match(stdout, pair) == 1)
-            {
-                // the l flag has been set, print the file name
-                printf("%s\n", stream.getFile1().c_str());
-                return 0;
             }
         }
         pair.clear();

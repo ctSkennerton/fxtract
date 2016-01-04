@@ -138,5 +138,20 @@ diff_output_and_report 13.output.fa 13.expected.fa 13d
 ../fxtract -HX HWI-ST1243:175:C29BRACXX:4:1101:15034:30425 15.fq > 15.output.fq
 diff_output_and_report 15.output.fq 15.expected.fq 13e
 
+print_test_header "search for sequences using the reverse complement with different regex engines"
+../fxtract -r AAGTGGCGTCTCAATCCCTTTG 1.fa > 1.output.fa
+diff_output_and_report 1.output.fa 1.expected.fa 14a
+
+../fxtract -rX TCGAACGTCGCAAAGACTCGCACCCTCGCTGCGAACGACACGTCTCAATCCCTTTGAATTCAGGGCATCAGTTCGAACTGGAGCAGTACGACCACGTTGATCTGAAGTGGCGTCTCAATCCCTTTGAATTCAGGGCATCAGTTCGAACGG 1.fa > 13b.output.fa
+diff_output_and_report 13b.output.fa 13b.expected.fa 14b
+
+../fxtract -rf <(echo AAGTGGCGTCTCAATCCCTTTG) 1.fa > 1.output.fa
+diff_output_and_report 1.output.fa 1.expected.fa 14c
+
+../fxtract -X TCGAACGTCGCAAAGACTCGCACCCTCGCTGCGAACGACACGTCTCAATCCCTTTGAATTCAGGGCATCAGTTCGAACTGGAGCAGTACGACCACGTTGATCTGAAGTGGCGTCTCAATCCCTTTGAATTCAGGGCATCAGTTCGAACGG 1.fa > 13b.output.fa
+diff_output_and_report 13b.output.fa empty.fa 14d
+
+../fxtract -f <(echo AAGTGGCGTCTCAATCCCTTTG) 1.fa > 13e.output.fa
+diff_output_and_report 13e.output.fa empty.fa 14e
 
 exit $failed_any
