@@ -122,4 +122,21 @@ diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expecte
 ../fxtract -Hf headers2.txt 1.fa
 diff_output_and_report2 14_out_1.fasta 14_out_2.fasta 14_1.expected 14_2.expected 12b
 
+print_test_header "proper comment printing"
+../fxtract CAAAGGGATTGAGACGCCACTT 13.fa > 13.output.fa
+diff_output_and_report 1.output.fa 1.expected.fa 13a
+
+../fxtract -G CAAAGGGATTGAGACGCCACTT 13.fa > 13.output.fa
+diff_output_and_report 13.output.fa 13.expected.fa 13b
+
+../fxtract -E CAAAGGGATTGAGACGCCACTT 13.fa > 13.output.fa
+diff_output_and_report 13.output.fa 13.expected.fa 13c
+
+../fxtract -P CAAAGGGATTGAGACGCCACTT 13.fa > 13.output.fa
+diff_output_and_report 13.output.fa 13.expected.fa 13d
+
+../fxtract -HX HWI-ST1243:175:C29BRACXX:4:1101:15034:30425 15.fq > 15.output.fq
+diff_output_and_report 15.output.fq 15.expected.fq 13e
+
+
 exit $failed_any

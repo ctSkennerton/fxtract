@@ -40,7 +40,7 @@ void kseq::print(FILE * out) {
     } else {
       fprintf(out, "@%s", name.c_str());
       if(!comment.empty()) {
-        fprintf(out, "%s", comment.c_str());
+        fprintf(out, " %s", comment.c_str());
       }
       fprintf(out, "\n%s\n+\n%s\n", seq.c_str(), qual.c_str());
     }
