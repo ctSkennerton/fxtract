@@ -35,3 +35,5 @@ $ make fxtract_test
 ```
 and see if they pass, I hope that they do.
 
+## License
+MIT. See LICENSE file for more details
