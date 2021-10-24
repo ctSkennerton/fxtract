@@ -26,7 +26,6 @@
 
 extern "C" {
 #include "util/ssearch.h"
-#include "util/bpsearch.h"
 #include "util/msutil.h"
 }
 
