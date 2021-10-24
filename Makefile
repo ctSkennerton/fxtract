@@ -25,7 +25,10 @@ ifeq ($(LIBZ), 1)
 	LIBS += $(LIBZ_PATH)
 endif
 
-include $(util)/GNUmakefile
+
+#include $(util)/GNUmakefile
+$(util)/libmsutil.a:
+	$(MAKE) -C $(util)
 
 ifneq "$(wildcard .git)" ""
 PACKAGE_VERSION := $(shell git describe --always)
